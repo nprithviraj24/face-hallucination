@@ -56,7 +56,7 @@ SpecNorm is much better way to enforce 1-Lipschitz constraint on D.[Spectral Nor
 
  Note: Using conventional loss function Without Spectral Normalisation: LS Loss.
 
-#### IMP: We have to adjust optimizers accordingly, if we want to use to use different Discriminators.
+#### Imp. - We have to adjust optimizers accordingly, if we want to use different Discriminators.
 
 #### Generators: 
 - Still looking for good G-Two network. 
