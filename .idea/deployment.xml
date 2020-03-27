@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData">
+  <component name="PublishConfigData" autoUpload="Always" serverName="root@asdf:4705">
     <serverData>
       <paths name="root@asdf:4705">
         <serverdata>
           <mappings>
-            <mapping deploy="/tmp/face-hallucination" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/tmp/face-hallucination" local="$PROJECT_DIR$" web="https://github.com/nprithviraj24/face-hallucination/" />
+            <mapping deploy="" local="" web="" />
           </mappings>
         </serverdata>
       </paths>
     </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>

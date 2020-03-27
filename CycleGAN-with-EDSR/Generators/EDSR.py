@@ -3,27 +3,11 @@ import torch.nn as nn
 import math
 # EDSR in the paper (x4) - from EDSR (x2)
 #python main.py --model EDSR --scale 4 --save edsr_x4 --n_resblocks 32 --n_feats 256 --res_scale 0.1 --reset --pre_train [pre-trained EDSR_x2 model dir]
-rgb_range = 255
-n_colors = 3
-n_feats = 256 #initially 256
-n_resblocks = 32
-res_scale= 0.1
-kernel_size = 3
-scale = 4
 
 
-url_name = 'r{}f{}x{}'.format(n_resblocks, n_feats, scale)
 
-url = {
-    'r16f64x2': 'EDSR_Weights/edsr_baseline_x2-1bc95232.pt',
-    'r16f64x3': 'EDSR_Weights/edsr_baseline_x3-abf2a44e.pt',
-    'r16f64x4': 'EDSR_Weights/edsr_baseline_x4-6b446fab.pt',
-    'r32f256x2': 'EDSR_Weights/edsr_x2-0edfb8a3.pt',
-    'r32f256x3': 'EDSR_Weights/edsr_x3-ea3ef2c6.pt',
-    'r32f256x4': 'EDSR_Weights/edsr_x4-4f62e9ef.pt'
-}
 
-def default_conv(in_channels, out_channels, kernel_size, bias=True):
+def conv(in_channels, out_channels, kernel_size, bias=True):
     return nn.Conv2d(
         in_channels, out_channels, kernel_size,
         padding=(kernel_size//2), bias=bias)
@@ -110,33 +94,34 @@ class MeanShift(nn.Conv2d):
 
 
 class EDSR(nn.Module):
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(EDSR, self).__init__()
-        conv=default_conv
+
         act = nn.ReLU(True)
-        if url_name in url:
-            self.url = url[url_name]
+        kwargs['EDSR']['url_name'] = 'r{}f{}x{}'.format(kwargs['EDSR']['n_resblocks'], kwargs['EDSR']['n_feats'], kwargs['EDSR']['scale'])
+        if kwargs['EDSR']['url_name']:
+            self.url = kwargs['EDSR']['url_name']
         else:
             self.url = None
 
-        self.sub_mean = MeanShift(rgb_range)
-        self.add_mean = MeanShift(rgb_range, sign=1)
+        self.sub_mean = MeanShift(kwargs['EDSR']['rgb_range'])
+        self.add_mean = MeanShift(kwargs['EDSR']['rgb_range'], sign=1)
 
         # define head module
-        m_head = [conv(n_colors, n_feats, kernel_size)]
+        m_head = [conv(kwargs['EDSR']['n_colors'], kwargs['EDSR']['n_feats'], kwargs['EDSR']['kernel_size'])]
 
         # define body module
         m_body = [
             ResBlock(
-                conv, n_feats, kernel_size, act=act, res_scale=res_scale
-            ) for _ in range(n_resblocks)
+                conv, kwargs['EDSR']['n_feats'], kwargs['EDSR']['kernel_size'], act=act, res_scale=kwargs['EDSR']['res_scale']
+            ) for _ in range(kwargs['EDSR']['n_resblocks'])
         ]
-        m_body.append(conv(n_feats, n_feats, kernel_size))
+        m_body.append(conv(kwargs['EDSR']['n_feats'], kwargs['EDSR']['n_feats'], kwargs['EDSR']['kernel_size']))
 
         # define tail module
         m_tail = [
-            Upsampler(conv, scale, n_feats, act=False),
-            conv(n_feats, n_colors, kernel_size)
+            Upsampler(conv, kwargs['EDSR']['scale'], kwargs['EDSR']['n_feats'], act=False),
+            conv(kwargs['EDSR']['n_feats'], kwargs['EDSR']['n_colors'], kwargs['EDSR']['kernel_size'])
         ]
 
         self.head = nn.Sequential(*m_head)

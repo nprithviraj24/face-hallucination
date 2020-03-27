@@ -3,6 +3,7 @@
 ### Face Hallucination
 ##### This repo is built on grounds of developing different generative models to perform super-resolution (SR) on face images with unaligned pairs between domain X and domain Y. 
 
+
 1. Image-Degrade: [To learn image super-resolution, use a GAN to learn how to do image degradation first](https://arxiv.org/pdf/1807.11458.pdf)
 2. CycleGAN with EDSR. [CycleGAN](https://junyanz.github.io/CycleGAN/) and [EDSR](https://arxiv.org/pdf/1707.02921.pdf)
 
@@ -27,3 +28,17 @@
  
 
 - [ ] <strong>StyleVAE: Style basedVAE for Real-World SR</strong> [StyleVAE + SR Network](https://arxiv.org/abs/1912.10227)
+
+** Yet to Come **
+### Comparison
+```Calculated FIDs and Inception Scores```
+
+
+FIDs and IS with respect to it's bicubic-upsampled images. 
+
+Upsample Process | Input | FID | Inception Score
+--- | --- | --- | --- |
+**EDSR** | DIV2K |  --  |  --
+EDSR with CycleGAN | DIV2K | -- | --
+ImageDegradation | AIT3D | -- | -- 
+StyleVAE | AIT3D | -- | --

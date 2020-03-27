@@ -48,28 +48,29 @@ def conv( in_channels, out_channels, kernel_size, stride=2, padding=1, batch_nor
 
 
 class GTwo(nn.Module):
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(GTwo, self).__init__()
-        self.conv1 = nn.Conv2d(3, c, kernel_size=kernels[0], stride=1, padding=1)
+        self.batchnorm = kwargs['Gtwo']['batchnorm']
+        self.conv1 = nn.Conv2d(3, kwargs['Gtwo']['c'], kernel_size=kwargs['Gtwo']['kernels'][0], stride=1, padding=1)
 
-        self.conv2 = nn.Conv2d(c, c, kernel_size=kernels[1], stride=1, padding=1)
+        self.conv2 = nn.Conv2d(kwargs['Gtwo']['c'], kwargs['Gtwo']['c'], kernel_size=kwargs['Gtwo']['kernels'][1], stride=1, padding=1)
 
-        self.conv3 = nn.Conv2d(c, c, kernel_size=kernels[1], stride=2, padding=1)
+        self.conv3 = nn.Conv2d(kwargs['Gtwo']['c'], kwargs['Gtwo']['c'], kernel_size=kwargs['Gtwo']['kernels'][1], stride=2, padding=1)
 
         self.residual = self.make_res_layers(ResidualBlock, 6, 64)
 
-        self.conv4 = nn.Conv2d(c, c, kernel_size=kernels[1], stride=2, padding=1)
+        self.conv4 = nn.Conv2d(kwargs['Gtwo']['c'], kwargs['Gtwo']['c'], kernel_size=kwargs['Gtwo']['kernels'][1], stride=2, padding=1)
 
-        #  self.conv7 = nn.Conv2d(c, c, kernel_size=kernels[1], stride=2, padding=1)
+        #  self.conv7 = nn.Conv2d(kwargs['c' ,kwargs['c' ,kernel_size=kernels[1], stride=2, padding=1)
 
-        self.conv5 = nn.Conv2d(c, c, kernel_size=kernels[1], stride=1, padding=1)
+        self.conv5 = nn.Conv2d(kwargs['Gtwo']['c'], kwargs['Gtwo']['c'], kernel_size=kwargs['Gtwo']['kernels'][1], stride=1, padding=1)
 
-        self.conv6 = nn.Conv2d(c, 3, kernel_size=kernels[0], stride=1, padding=1)
+        self.conv6 = nn.Conv2d(kwargs['Gtwo']['c'], 3, kernel_size=kwargs['Gtwo']['kernels'][0], stride=1, padding=1)
 
     def make_res_layers(self, block, num_of_layer, conv_dim):
         layers = []
         for _ in range(num_of_layer):
-            layers.append(block(conv_dim, bn=batchnorm))
+            layers.append(block(conv_dim, bn=self.batchnorm))
         return nn.Sequential(*layers)
 
     def forward(self, x):
