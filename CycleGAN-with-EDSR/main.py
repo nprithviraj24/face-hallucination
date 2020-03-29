@@ -4,7 +4,11 @@ from Generators import EDSR as G1
 from Generators import Gtwo as G2
 import loss
 
+# from test_tube import Experiment
 import os, yaml, argparse
+from torch.utils.tensorboard import SummaryWriter
+import torchvision.utils as vutils
+from tqdm import tqdm
 import torchvision.models.vgg as vgg
 import torch
 from torch import nn
@@ -20,14 +24,29 @@ parser.add_argument('--config',  '-c',
                     default='config.yaml')
 
 args = parser.parse_args()
+
+
 with open(args.filename, 'r') as file:
     try:
         config = yaml.safe_load(file)
     except yaml.YAMLError as exc:
         print(exc)
+
+torch.manual_seed(config["model_params"]["manual_seed"])
+
 # A = args['EDSR']
 # print(type(args))
-def create_model(g_conv_dim=64, d_conv_dim=64, n_res_blocks=6, **kwargs):
+if config["logging_params"]["log"]:
+
+    print("------- Logging active -------- ")
+    writer = SummaryWriter(config['logging_params']['save_dir'])
+else:
+    print("+++++++ No logger activated. +++++++ ")
+
+device = torch.device('cpu')
+if torch.cuda.is_available(): device = torch.device("cuda")
+
+def create_model(device, g_conv_dim=64, d_conv_dim=64, n_res_blocks=6, **kwargs):
     """Builds the generators and discriminators."""
 
     url = {
@@ -43,19 +62,19 @@ def create_model(g_conv_dim=64, d_conv_dim=64, n_res_blocks=6, **kwargs):
 
     # Instantiate generators
 
-    device = torch.device('cpu')
-    if torch.cuda.is_available(): device = torch.device("cuda")
-
-    print(device)
     G_XtoY = G1.EDSR(EDSR=kwargs['EDSR']).to(device)
     # print(G_XtoY.url)
     # kwargs['EDSR']
     G_XtoY.load_state_dict(torch.load(url[G_XtoY.url]))
 
     G_YtoX = G2.GTwo(Gtwo=kwargs['Gtwo']).to(device)
+
+
     # Instantiate discriminators
-    D_X = D.DTwo(64).to(device)
-    D_Y = D.DOne(64).to(device)
+    # D_X = D.DTwo(64).to(device)
+    # D_Y = D.DOne(64).to(device)
+    D_X = D.NLayerDiscriminator(input_nc=3, n_layers=2).to(device)
+    D_Y = D.NLayerDiscriminator(input_nc=3, n_layers=4, ndf=128).to(device)
 
     # move models to GPU, if available
     # if torch.cuda.is_available():
@@ -75,12 +94,16 @@ def create_model(g_conv_dim=64, d_conv_dim=64, n_res_blocks=6, **kwargs):
 # del dataloader_X, test_dataloader_X
 # del dataloader_Y, test_dataloader_Y
 # print(config['EDSR'])
-G_XtoY, G_YtoX, D_X, D_Y = create_model(EDSR=config['EDSR'], Gtwo=config['Gtwo'])
+G_XtoY, G_YtoX, D_X, D_Y = create_model(EDSR=config['EDSR'], Gtwo=config['Gtwo'], device=device)
 dataloader_X, test_iter_X = dl.get_data_loader(image_type='lr', exp_params=config['exp_params'])
 dataloader_Y, test_iter_Y = dl.get_data_loader(image_type='hr', exp_params=config['exp_params'])
 
 # next(iter(dataloader_X))[0][0]
 
+## Trial
+# print("Testing")
+# a = torch.randn(size=[8,3,64,64], device=device)
+# print(D_Y(a).shape)
 
 
 c = 64  # initially 256
@@ -120,7 +143,7 @@ from IPython import display
 pretrain_epoch = 0
 # PATH = '/content/drive/My Drive/Datasets/SR/Cycle-EDSR-W/G_XtoY_28.pth'
 # checkpoint = torch.load(PATH)
-
+mse_loss = torch.nn.MSELoss()
 # pretrain_epoch = checkpoint['epoch']
 test_iter_X = next(iter(test_iter_Y))[0]
 
@@ -132,40 +155,29 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
     # keep track of losses over time
     losses = []
 
-    test_iter_X = iter(test_dataloader_X)
-    test_iter_Y = iter(test_dataloader_Y)
-    # print("0")
     # Get some fixed data from domains X and Y for sampling. These are images that are held
     # constant throughout training, that allow us to inspect the model's performance.
     # make sure to scale to a range -1 to 1
 
-    ## We can decide if we want to scale.
-    fixed_X = test_iter_X.next()[0]
-    fixed_Y = test_iter_Y.next()[0]
+    fixed_Y = next(iter(dataloader_Y))[0] ## shape: [batchsize, channels, height, width]
+    fixed_X = next(iter(dataloader_X))[0]  ## shape: [batchsize, channels, height, width]
 
-
-    # batches per epoch
-
-    # n_epochs = 2
-    for epoch in range(pretrain_epoch, n_epochs+1):
-
+    for epoch in range(pretrain_epoch, config['hyperparams']['epochs']+1):
+      print("inside")
       epochG_loss = 0
       runningG_loss = 0
       runningDX_loss = 0
       runningDY_loss = 0
-      LOG_INTERVAL = 25
-
       mbps = 0 #mini batches per epoch
 
-      for batch_id, (x, _) in tqdm_notebook(enumerate(dataloader_X), total=len(dataloader_X)):
+      for batch_id, (y, _) in tqdm(enumerate(dataloader_Y), total=len(dataloader_Y)):
         #  with torch.no_grad():
            mbps += 1
-           y, a = next(iter(dataloader_Y))
+           x, _ = next(iter(dataloader_X))
            images_X = x # make sure to scale to a range -1 to 1
            images_Y = y
            del y
            # move images to GPU if available (otherwise stay on CPU)
-           device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
            images_X = images_X.to(device)
            images_Y = images_Y.to(device)
           #  print("start:  ",convert_size(torch.cuda.memory_allocated(device=device)))
@@ -208,20 +220,24 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
            g_XtoY_loss = loss.real_mse_loss(out_y)
            reconstructed_X = G_YtoX(fake_Y)
 
-           reconstructed_x_loss = loss.cycle_consistency_loss(images_X, reconstructed_X, lambda_weight=50)
+           reconstructed_x_loss = loss.cycle_consistency_loss(images_X, reconstructed_X,
+                                                              lambda_weight= config['hyperparams']['lambda_weight'])
 
-           featuresY = loss_network(images_Y);
-           featuresFakeY = loss_network(fake_Y);
+           featuresY = loss_network(images_Y)
+           featuresFakeY = loss_network(fake_Y)
 
-           CONTENT_WEIGHT = 10
-           contentloss = CONTENT_WEIGHT * loss.mse_loss(featuresY[1].data, featuresFakeY[1].data)
+           # print("\nFake Y: ", fake_Y.shape, "   imagesY: ", images_Y.shape,"\n",featuresY[1].data.shape, "   ", featuresFakeY[1].data.shape)
+           # exit()
+           CONTENT_WEIGHT = config['hyperparams']['Content_Weight']
+           contentloss = CONTENT_WEIGHT * mse_loss(featuresY[1].data, featuresFakeY[1].data)
            del featuresY, featuresFakeY; torch.cuda.empty_cache()
 
-           IDENTITY_WEIGHT = 100000
-           downsample = nn.Upsample(scale_factor=0.25, mode='bicubic')
-           identity_loss = IDENTITY_WEIGHT * loss.mse_loss(downsample(fake_Y), images_X )
+           IDENTITY_WEIGHT = config['hyperparams']['Identity_Weight']
 
-           TOTAL_VARIATION_WEIGHT = 0.01
+           downsample = nn.Upsample(scale_factor=0.25, mode='bicubic')
+           identity_loss = IDENTITY_WEIGHT * mse_loss(downsample(fake_Y), images_X )
+
+           TOTAL_VARIATION_WEIGHT = config['hyperparams']['TotalVariation_Weight']
            tvloss = TOTAL_VARIATION_WEIGHT * loss.tv_loss(fake_Y, 0.25)
 
            g_total_loss = g_XtoY_loss + reconstructed_x_loss + identity_loss + tvloss + contentloss
@@ -235,19 +251,36 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
            runningG_loss += g_total_loss
 
 
-           if mbps % LOG_INTERVAL == 0:
-             with torch.no_grad():
-              G_XtoY.eval() # set generators to eval mode for sample generation
-              fakeY = G_XtoY(fixed_X.to(device))
-              # imshow(torchvision.utils.make_grid(fixed_X.cpu()))
-              G_XtoY.train()
-              print('Mini-batch no: {}, at epoch [{:3d}/{:3d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f}| g_total_loss: {:6.4f}'.format(mbps, epoch, n_epochs,  d_x_loss.item() , d_y_loss.item() , g_total_loss.item() ))
-              print(' TV-loss: ', tvloss.item(), '  content loss:', contentloss.item(), '  identity loss:', identity_loss.item() )
+           if config["logging_params"]["log"] and mbps % config["logging_params"]["log_interval"] == 0:
 
-      with torch.no_grad():
-        G_XtoY.eval() # set generators to eval mode for sample generation
-        fakeY = G_XtoY(fixed_X.to(device))
-        G_XtoY.train()
+              if mbps%config["logging_params"]["image_log"] ==0:
+                 with torch.no_grad():
+                   G_XtoY.eval()
+                   writer.add_image(tag=str(epoch)+'/'+str(mbps), img_tensor=vutils.make_grid( G_XtoY(fixed_X.to(device)), normalize=True,
+                                                      pad_value=1, nrow=8), global_step=epoch)
+                   G_XtoY.train()
+
+              writer.add_scalars('D', {'Y': d_y_loss.item(), 'X': d_x_loss.item()}, epoch)
+              writer.add_scalars('G', {'TV': tvloss.item(),
+                                       'Content': contentloss.item(),
+                                       'Identity': identity_loss.item()}, epoch)
+
+           print('Mini-batch no: {}, at epoch [{:3d}/{:3d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f}| g_total_loss: {:6.4f}'
+                    .format(mbps, epoch, n_epochs,  d_x_loss.item() , d_y_loss.item() , g_total_loss.item() ))
+           print(' TV-loss: ', tvloss.item(), '  content loss:', contentloss.item(), '  identity loss:', identity_loss.item() )
+
+              # if config["logging_params"]["log"]:
+                # writer.add_scalar('G/content', contentloss.item(), global_step=epoch)
+                # writer.add_scalar('G/TV', tvloss.item(), global_step=epoch)
+                # writer.add_scalar('G/identity', identity_loss.item(), global_step=epoch)
+                # writer.add_scalar('D/Y', d_y_loss.item(), global_step=epoch)
+                # writer.add_scalar('D/X', d_x_loss.item(), global_step=epoch)
+
+
+      # with torch.no_grad():
+        # G_XtoY.eval() # set generators to eval mode for sample generation
+        # fakeY = G_XtoY(fixed_X.to(device))
+        # G_XtoY.train()
         # print("Epoch loss:  ", epochG_loss/)
       losses.append((runningDX_loss/mbps, runningDY_loss/mbps, runningG_loss/mbps))
       print('Epoch [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | g_total_loss: {:6.4f}'.format(epoch, n_epochs, runningDX_loss/mbps ,  runningDY_loss/mbps,  runningG_loss/mbps ))

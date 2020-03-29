@@ -22,7 +22,6 @@ def cycle_consistency_loss(real_im, reconstructed_im, lambda_weight):
     # return weighted loss
     return lambda_weight*reconstr_loss
 
-
 from collections import namedtuple
 
 LossOutput = namedtuple("LossOutput", ["relu1_2", "relu2_2", "relu3_3", "relu4_3"])

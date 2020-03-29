@@ -1,4 +1,4 @@
-
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -49,8 +49,8 @@ class DOne(nn.Module):
         out = F.relu(self.conv3(out))
         out = F.relu(self.conv4(out))
         out = F.relu(self.conv5(out))
-        out = F.relu(self.conv6(out))
-        out = F.relu(self.conv7(out))
+        # out = F.relu(self.conv6(out))
+        # out = F.relu(self.conv7(out))
         # last, classification layer
         out = self.conv8(out)
         # print(type(self.conv1))
@@ -93,3 +93,92 @@ class DTwo(nn.Module):
             out = self.conv8(out)
             # print(type(self.conv1))
             return out
+
+
+class DThree(nn.Module):
+
+    def __init__(self, conv_dim=64):
+        super(DThree, self).__init__()
+
+        # Define all convolutional layers
+        # Should accept an RGB image as input and output a single value
+
+        # Convolutional layers, increasing in depth
+        # first layer has *no* batchnorm
+        #in: 16,16, 3
+        self.conv1 = conv(3, conv_dim, 4, batch_norm=False)  # out: (8,8,64)
+        self.conv2 = conv(conv_dim, conv_dim * 2,  4, stride=1, padding=1)  #out: (8, 8, 128)
+        self.conv3 = conv(conv_dim * 2, conv_dim * 4, 4)  # out: (4, 4, 256)
+
+        # Classification layer
+        self.conv8 = conv(conv_dim * 4, 1, 4, stride=1, batch_norm=False)
+
+    def forward(self, x):
+        # relu applied to all conv layers but last
+        out = F.relu(self.conv1(x))
+        out = F.relu(self.conv2(out))
+        out = F.relu(self.conv3(out))
+        # out = F.relu(self.conv4(out))
+        # out = F.relu(self.conv5(out))
+        # out = F.relu(self.conv6(out))
+        # out = F.relu(self.conv7(out))
+        # last, classification layer
+        out = self.conv8(out)
+        # print(type(self.conv1))
+        return out
+
+
+
+class NLayerDiscriminator(nn.Module):
+    """Defines a PatchGAN discriminator"""
+
+    def __init__(self, input_nc, ndf=64, n_layers=3, norm_layer=nn.InstanceNorm2d):
+        """Construct a PatchGAN discriminator
+        Parameters:
+            input_nc (int)  -- the number of channels in input images
+            ndf (int)       -- the number of filters in the last conv layer
+            n_layers (int)  -- the number of conv layers in the discriminator
+            norm_layer      -- normalization layer
+        """
+        super(NLayerDiscriminator, self).__init__()
+        # if type(norm_layer) == functools.partial:  # no need to use bias as BatchNorm2d has affine parameters
+        #     use_bias = norm_layer.func == nn.InstanceNorm2d
+        # else:
+        use_bias = norm_layer == nn.InstanceNorm2d
+
+        kw = 4
+        padw = 1
+        sequence = [nn.Conv2d(input_nc, ndf, kernel_size=kw, stride=2, padding=padw), nn.LeakyReLU(0.2, True)]
+        nf_mult = 1
+        nf_mult_prev = 1
+        for n in range(1, n_layers):  # gradually increase the number of filters
+            nf_mult_prev = nf_mult
+            nf_mult = min(2 ** n, 8)
+            sequence += [
+                nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult, kernel_size=kw, stride=2, padding=padw, bias=use_bias),
+                norm_layer(ndf * nf_mult),
+                nn.LeakyReLU(0.2, True)
+            ]
+
+        nf_mult_prev = nf_mult
+        nf_mult = min(2 ** n_layers, 8)
+        sequence += [
+            nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult, kernel_size=kw, stride=1, padding=padw, bias=use_bias),
+            norm_layer(ndf * nf_mult),
+            nn.LeakyReLU(0.2, True)
+        ]
+
+        sequence += [nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]  # output 1 channel prediction map
+        self.model = nn.Sequential(*sequence)
+
+    def forward(self, input):
+        """Standard forward."""
+        return self.model(input)
+
+
+#
+# d1 = NLayerDiscriminator(input_nc=3 , n_layers=2)
+# d2 = NLayerDiscriminator(input_nc=3 , n_layers=4, ndf=128)
+#
+#
+# print(d2(torch.rand(size=[8,3,64,64])).shape)
