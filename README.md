@@ -33,7 +33,7 @@
 ### Comparison
 ```FIDs scores between model and interpolation technique```
 
-<strong> How can we evaluate our model if we don't have groud-truth high resolution images?
+<strong> How can we evaluate our model if we don't have groud-truth high resolution images? </strong>
 
 We can have a decent workaround for this problem, where we calculate the FID of our generated images with <i>frame of reference</i> dataset such as Celeb-A, FFHQ, AIT3D etc.
 Idea is that we calculate FID between the interpolated high-res and <i>frame of reference</i> dataset. We compare this value with FID between synthesized high res image from our model and <i>frame of reference</i> dataset
