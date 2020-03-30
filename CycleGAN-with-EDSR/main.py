@@ -69,50 +69,19 @@ def create_model(device, g_conv_dim=64, d_conv_dim=64, n_res_blocks=6, **kwargs)
     # Instantiate generators
 
     G_XtoY = G1.EDSR(EDSR=kwargs['EDSR']).to(device)
-    # print(G_XtoY.url)
-    # kwargs['EDSR']
     G_XtoY.load_state_dict(torch.load(url[G_XtoY.url]))
 
     G_YtoX = G2.GTwo(Gtwo=kwargs['Gtwo']).to(device)
 
-
-    # Instantiate discriminators
-    # D_X = D.DTwo(64).to(device)
-    # D_Y = D.DOne(64).to(device)
-    # D_X = D.NLayerDiscriminator(input_nc=3, n_layers=2).to(device)
-    # D_Y = D.NLayerDiscriminator(input_nc=3, n_layers=4, ndf=128).to(device)
-
     D_X = D.SpecNorm_NLayer(input_nc=3, n_layers=2).to(device)
     D_Y = D.SpecNorm_NLayer(input_nc=3, n_layers=4, ndf=128).to(device)
-
-    # move models to GPU, if available
-    # if torch.cuda.is_available():
-    #     device = torch.device("cuda:0")
-    #     G_XtoY.to(device)
-    #     G_YtoX.to(device)
-    #     D_X.to(device)
-    #     D_Y.to(device)
-    #     print('Models moved to GPU.')
-    # else:
-    #     print('Only CPU available.')
 
     return G_XtoY, G_YtoX, D_X, D_Y
 
 # Create train and test dataloaders for images from the two domains X and Y
-# image_type = directory names for our data
-# del dataloader_X, test_dataloader_X
-# del dataloader_Y, test_dataloader_Y
-# print(config['EDSR'])
 G_XtoY, G_YtoX, D_X, D_Y = create_model(EDSR=config['EDSR'], Gtwo=config['Gtwo'], device=device)
 dataloader_X, test_iter_X = dl.get_data_loader(image_type='lr', exp_params=config['exp_params'])
 dataloader_Y, test_iter_Y = dl.get_data_loader(image_type='hr', exp_params=config['exp_params'])
-
-# next(iter(dataloader_X))[0][0]
-
-## Trial
-# print("Testing")
-# a = torch.randn(size=[8,3,64,64], device=device)
-# print(D_Y(a).shape)
 
 ### FOR FID
 reference_frame = '/tmp/Datasets/celeba/img_align_celeba/celeba'
@@ -301,14 +270,6 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
            print('Mini-batch no: {}, at epoch [{:3d}/{:3d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f}| g_total_loss: {:6.4f}'
                     .format(mbps, epoch, n_epochs,  d_x_loss.item() , d_y_loss.item() , g_total_loss.item() ))
            print(' TV-loss: ', tvloss.item(), '  content loss:', contentloss.item(), '  identity loss:', identity_loss.item() )
-
-              # if config["logging_params"]["log"]:
-                # writer.add_scalar('G/content', contentloss.item(), global_step=epoch)
-                # writer.add_scalar('G/TV', tvloss.item(), global_step=epoch)
-                # writer.add_scalar('G/identity', identity_loss.item(), global_step=epoch)
-                # writer.add_scalar('D/Y', d_y_loss.item(), global_step=epoch)
-                # writer.add_scalar('D/X', d_x_loss.item(), global_step=epoch)
-
 
       fid = calc_fid(G_XtoY.eval())
       G_XtoY.train()

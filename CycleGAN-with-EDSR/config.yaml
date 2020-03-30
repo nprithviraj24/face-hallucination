@@ -28,7 +28,7 @@ exp_params:
 #  dataset: celeba
   data_path: "/tmp/Datasets/"
   #If you want to try with different models
-  lr_datapath : "DIV2k"
+  lr_datapath : "DIV2k/images"
   hr_datapath :  "celeba/img_align_celeba"
 
   hr_imageSize: 64
@@ -51,7 +51,8 @@ EDSR:
  res_scale : 0.1
  kernel_size : 3
  scale : 4
- save_dir: "/tmp/Datasets/DIV2k/CycleEDSR"
+ edsr_save: "/tmp/Datasets/DIV2k/model/EDSR" #used in edsrOnly
+ save_dir: "/tmp/Datasets/DIV2k/model/CycleEDSR"
 
 Gtwo:
   c : 64  #initially 256

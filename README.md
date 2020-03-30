@@ -35,31 +35,31 @@
 
 <strong> How can we evaluate our model if we don't have groud-truth high resolution images? </strong>
 
-We can have a decent workaround for this problem, where we calculate the FID of our generated images with <i>frame of reference</i> dataset such as Celeb-A, FFHQ, AIT3D etc.
+We can have a decent workaround for this problem, by calculating the FID of our generated images with <i>frame of reference</i> dataset such as Celeb-A, FFHQ, AIT3D etc.
 Idea is that we calculate FID between the interpolated high-res and <i>frame of reference</i> dataset. We compare this value with FID between synthesized high res image from our model and <i>frame of reference</i> dataset
 
-##### Interpolating based upsampling process from ``PIL``
+#### Interpolating based upsampling process from ``PIL``
 |   Reference Dataset	|  Input Dataset	| Upsampling Process  	|  FID 
 | --- |---	|---	|---	
 | celebA  	|   DIV2k	| NEAREST  	|   221.990232219738	
-| celebA  	|  DIV2k 	| BILINEAR  	|  231.9694814498381
+| celebA  	|  DIV2k 	| BILINEAR  |  231.9694814498381
 | celebA  	|  DIV2k 	| BICUBIC  	|  252.76578951346124   	
 | celebA  	|   DIV2k	| LANCZOS  	|   242.29334933169804	
 | celebA  	|  DIV2k 	| HAMMING  	|  221.990232219738
-| celebA  	|  DIV2k 	| BOX  	|  199.87696132053242
+| celebA  	|  DIV2k 	| BOX   	|  199.87696132053242
 
-##### FID of Generated Images
+#### FID of Generated Images
 
-```Reference Dataset: CelebA```
+Reference Dataset ```CelebA```
 
-Upsample | Input | FID                               
---- | --- | --- |
-**EDSR*** | DIV2K |  --  
-EDSR with CycleGAN | DIV2K | --
+Upsample | Input | FID | Experiment Notes                              
+--- | --- | --- | --- |
+EDSR* | DIV2k |  315.56615386029983 |  Scale: 4x, lr: 3x16x16, maybe normalization?
+CycleGAN (G1: EDSR*) | DIV2k | 252.2 | Epoch:31, D from PatchGAN, SpectralNorm, ForwardCycle
  
 <!--  #Uncomment below two to  when model is ready
 ImageDegradation | AIT3D | --  
 StyleVAE | AIT3D | -- 
 -->
 
-*Only with pretrained weights. 
+*With official pretrained weights. 
