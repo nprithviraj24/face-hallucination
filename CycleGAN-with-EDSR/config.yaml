@@ -1,11 +1,11 @@
 
 
 logging_params:
-  log : True4
+  log : True
   log_interval : 50
   image_log : 250 # Save images every 100 logs in an epoch
   #image log: must be multiple of log_interval
-  save_dir: "logs/"
+  save_dir: "logs/SpecNorm/"
   name: "forward-cycle-EDSR"
 
 
@@ -20,6 +20,7 @@ hyperparams:
 model_params:
   name: 'Forward-cycle-EDSR'
   manual_seed: 955
+  loss: ls  # least square, other variants: Wasserstein
 #  in_channels: 3
 #  latent_dim: 128
 
@@ -50,6 +51,7 @@ EDSR:
  res_scale : 0.1
  kernel_size : 3
  scale : 4
+ save_dir: "/tmp/Datasets/DIV2k/CycleEDSR"
 
 Gtwo:
   c : 64  #initially 256

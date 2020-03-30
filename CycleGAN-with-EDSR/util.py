@@ -3,11 +3,6 @@
 import torch
 import torch.nn.functional as F
 
-
-
-
-
-
 # helper scale function
 def scale(x, feature_range=(-1, 1)):
     ''' Scale takes in an image x and returns that image, scaled

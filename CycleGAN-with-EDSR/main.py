@@ -1,13 +1,19 @@
 import dataloader as dl
+
+# from Discriminators import Spectral_Normalization
 from Discriminators import Discriminator as D
 from Generators import EDSR as G1
 from Generators import Gtwo as G2
 import loss
+from FID import fid_score as FID
 
 # from test_tube import Experiment
 import os, yaml, argparse
 from torch.utils.tensorboard import SummaryWriter
 import torchvision.utils as vutils
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+import torchvision.datasets as datasets
 from tqdm import tqdm
 import torchvision.models.vgg as vgg
 import torch
@@ -73,8 +79,11 @@ def create_model(device, g_conv_dim=64, d_conv_dim=64, n_res_blocks=6, **kwargs)
     # Instantiate discriminators
     # D_X = D.DTwo(64).to(device)
     # D_Y = D.DOne(64).to(device)
-    D_X = D.NLayerDiscriminator(input_nc=3, n_layers=2).to(device)
-    D_Y = D.NLayerDiscriminator(input_nc=3, n_layers=4, ndf=128).to(device)
+    # D_X = D.NLayerDiscriminator(input_nc=3, n_layers=2).to(device)
+    # D_Y = D.NLayerDiscriminator(input_nc=3, n_layers=4, ndf=128).to(device)
+
+    D_X = D.SpecNorm_NLayer(input_nc=3, n_layers=2).to(device)
+    D_Y = D.SpecNorm_NLayer(input_nc=3, n_layers=4, ndf=128).to(device)
 
     # move models to GPU, if available
     # if torch.cuda.is_available():
@@ -105,6 +114,33 @@ dataloader_Y, test_iter_Y = dl.get_data_loader(image_type='hr', exp_params=confi
 # a = torch.randn(size=[8,3,64,64], device=device)
 # print(D_Y(a).shape)
 
+### FOR FID
+reference_frame = '/tmp/Datasets/celeba/img_align_celeba/celeba'
+
+transFORM = transforms.Compose([
+    transforms.Resize([16, 16], interpolation=3),
+    transforms.ToTensor()
+])
+
+images = datasets.ImageFolder(os.path.join(config['exp_params']['data_path'], config['exp_params']['lr_datapath']),
+                              transFORM)
+images = DataLoader(dataset=images, batch_size=1)
+
+def calc_fid(model):
+    model.eval()
+    for batch_id, (x, _) in tqdm(enumerate(images), total=len(images)):
+
+        vutils.save_image(
+            model(x.to(device)),  # tensor
+            config['EDSR']['save_dir'] + "/" + str(batch_id) + ".png"
+        )
+    model.train()
+
+    return FID.calculate_fid_given_paths( [reference_frame, config['EDSR']['save_dir']],  # paths
+          100,  # batch size
+          True,  # cuda
+          2048 ) # dims
+
 
 c = 64  # initially 256
 batchnorm = True
@@ -114,7 +150,7 @@ kernels = [3, 3]
 #lr=0.0000002, beta1 = 0.05, beta2 = 0.00999
 
 # hyperparams for Adam optimizer
-lr=0.000002
+lr=0.00002
 beta1=0.5
 beta2=0.99 # default value
 
@@ -124,20 +160,16 @@ g_params = list(G_XtoY.parameters()) + list(G_YtoX.parameters())  # Get generato
 g1_optimizer = optim.Adam(G_XtoY.parameters(), lr, [beta1, beta2])
 g_optimizer = optim.Adam(g_params, lr, [beta1, beta2])
 g2_optimizer = optim.Adam(G_YtoX.parameters(), lr, [beta1, beta2])
-d_x_optimizer = optim.Adam(D_X.parameters(), lr, [beta1, beta2])
-d_y_optimizer = optim.Adam(D_Y.parameters(), lr, [beta1, beta2])
+d_x_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_X.parameters()), lr=lr, betas=(0.0,0.9))
+# d_x_optimizer = optim.Adam(D_X.parameters(), lr, [beta1, beta2])
+d_y_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_Y.parameters()), lr=lr, betas=(0.0,0.9))
+# d_y_optimizer = optim.Adam(D_Y.parameters(), lr, [beta1, beta2])
 
 vgg_model = vgg.vgg16(pretrained=True)
 if torch.cuda.is_available():
   vgg_model.cuda()
 loss_network = loss.LossNetwork(vgg_model)
 loss_network.eval()
-
-# import save code
-# from helpers import save_samples, checkpoint
-import time
-import pylab as pl
-from IPython import display
 
 # train the network
 pretrain_epoch = 0
@@ -170,10 +202,10 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
       runningDY_loss = 0
       mbps = 0 #mini batches per epoch
 
-      for batch_id, (y, _) in tqdm(enumerate(dataloader_Y), total=len(dataloader_Y)):
+      for batch_id, (x, _) in tqdm(enumerate(dataloader_X), total=len(dataloader_X)):
         #  with torch.no_grad():
            mbps += 1
-           x, _ = next(iter(dataloader_X))
+           y, _ = next(iter(dataloader_Y))
            images_X = x # make sure to scale to a range -1 to 1
            images_Y = y
            del y
@@ -265,6 +297,7 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
                                        'Content': contentloss.item(),
                                        'Identity': identity_loss.item()}, epoch)
 
+
            print('Mini-batch no: {}, at epoch [{:3d}/{:3d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f}| g_total_loss: {:6.4f}'
                     .format(mbps, epoch, n_epochs,  d_x_loss.item() , d_y_loss.item() , g_total_loss.item() ))
            print(' TV-loss: ', tvloss.item(), '  content loss:', contentloss.item(), '  identity loss:', identity_loss.item() )
@@ -277,11 +310,10 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
                 # writer.add_scalar('D/X', d_x_loss.item(), global_step=epoch)
 
 
-      # with torch.no_grad():
-        # G_XtoY.eval() # set generators to eval mode for sample generation
-        # fakeY = G_XtoY(fixed_X.to(device))
-        # G_XtoY.train()
-        # print("Epoch loss:  ", epochG_loss/)
+      fid = calc_fid(G_XtoY.eval())
+      G_XtoY.train()
+      writer.add_scalar('FID', fid, global_step=epoch)
+
       losses.append((runningDX_loss/mbps, runningDY_loss/mbps, runningG_loss/mbps))
       print('Epoch [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | g_total_loss: {:6.4f}'.format(epoch, n_epochs, runningDX_loss/mbps ,  runningDY_loss/mbps,  runningG_loss/mbps ))
 
