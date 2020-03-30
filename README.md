@@ -31,14 +31,35 @@
 
 ** Yet to Come **
 ### Comparison
-```Calculated FIDs and Inception Scores```
+```FIDs scores between model and interpolation technique```
 
+<strong> How can we evaluate our model if we don't have groud-truth high resolution images?
 
-FIDs and IS with respect to it's bicubic-upsampled images. 
+We can have a decent workaround for this problem, where we calculate the FID of our generated images with <i>frame of reference</i> dataset such as Celeb-A, FFHQ, AIT3D etc.
+Idea is that we calculate FID between the interpolated high-res and <i>frame of reference</i> dataset. We compare this value with FID between synthesized high res image from our model and <i>frame of reference</i> dataset
 
-Upsample Process | Input | FID | Inception Score
---- | --- | --- | --- |
-**EDSR** | DIV2K |  --  |  --
-EDSR with CycleGAN | DIV2K | -- | --
-ImageDegradation | AIT3D | -- | -- 
-StyleVAE | AIT3D | -- | --
+##### Interpolating based upsampling process from ``PIL``
+|   Reference Dataset	|  Input Dataset	| Upsampling Process  	|  FID 
+| --- |---	|---	|---	
+| celebA  	|   DIV2k	| NEAREST  	|   221.990232219738	
+| celebA  	|  DIV2k 	| BILINEAR  	|  231.9694814498381
+| celebA  	|  DIV2k 	| BICUBIC  	|  252.76578951346124   	
+| celebA  	|   DIV2k	| LANCZOS  	|   242.29334933169804	
+| celebA  	|  DIV2k 	| HAMMING  	|  221.990232219738
+| celebA  	|  DIV2k 	| BOX  	|  199.87696132053242
+
+##### FID of Generated Images
+
+```Reference Dataset: CelebA```
+
+Upsample | Input | FID                               
+--- | --- | --- |
+**EDSR*** | DIV2K |  --  
+EDSR with CycleGAN | DIV2K | --
+ 
+<!--  #Uncomment below two to  when model is ready
+ImageDegradation | AIT3D | --  
+StyleVAE | AIT3D | -- 
+-->
+
+*Only with pretrained weights. 
