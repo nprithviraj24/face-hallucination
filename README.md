@@ -41,12 +41,12 @@ Idea is that we calculate FID between the interpolated high-res and <i>frame of 
 #### Interpolating based upsampling process from ``PIL``
 |   Reference Dataset	|  Input Dataset	| Upsampling Process  	|  FID 
 | --- |---	|---	|---	
-| celebA  	|   DIV2k	| NEAREST  	|   221.990232219738	
-| celebA  	|  DIV2k 	| BILINEAR  |  231.9694814498381
-| celebA  	|  DIV2k 	| BICUBIC  	|  252.76578951346124   	
-| celebA  	|   DIV2k	| LANCZOS  	|   242.29334933169804	
-| celebA  	|  DIV2k 	| HAMMING  	|  221.990232219738
-| celebA  	|  DIV2k 	| BOX   	|  199.87696132053242
+| celebA  	|   DIV2k-faces	| NEAREST  	|   221.990232219738	
+| celebA  	|  DIV2k-faces 	| BILINEAR  |  231.9694814498381
+| celebA  	|  DIV2k-faces 	| BICUBIC  	|  252.76578951346124   	
+| celebA  	|   DIV2k-faces	| LANCZOS  	|   242.29334933169804	
+| celebA  	|  DIV2k-faces 	| HAMMING  	|  221.990232219738
+| celebA  	|  DIV2k-faces 	| BOX   	|  199.87696132053242
 
 #### FID of Generated Images
 
@@ -54,10 +54,10 @@ Reference Dataset ```CelebA``` (from Kaggle)
 
 Upsample | Input | FID | Experiment Notes                              
 --- | --- | --- | --- |
-EDSR* | DIV2k |  315.56615386029983|  Scale: 4x, lr: 3x16x16,  maybe normalization?
-EDSR* | DIV2k |  310.02485583684836|  Scale: 4x, lr: 3x16x16,  Scaled
-EDSR* | DIV2k |  307.22565249983984|  Scale: 4x, lr: 3x16x16,  ImageNet normalization
-CycleGAN (G1: EDSR*) | DIV2k | 252.2 | Epoch:31, D from PatchGAN, SpectralNorm, ForwardCycle
+EDSR* | DIV2k-faces |  315.56615386029983|  Scale: 4x, lr: 3x16x16,  maybe normalization?
+EDSR* | DIV2k-faces |  310.02485583684836|  Scale: 4x, lr: 3x16x16,  Scaled
+EDSR* | DIV2k-faces |  307.22565249983984|  Scale: 4x, lr: 3x16x16,  ImageNet normalization
+CycleGAN (G1: EDSR*) | DIV2k-faces | 252.2 | Epoch:31, D from PatchGAN, SpectralNorm, ForwardCycle
  
 <!--  #Uncomment below two to  when model is ready
 ImageDegradation | AIT3D | --  
