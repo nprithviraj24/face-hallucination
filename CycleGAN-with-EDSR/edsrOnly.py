@@ -64,10 +64,14 @@ G_XtoY = create_model(device=device, EDSR=config['EDSR'])
 reference_frame = os.path.join(config['exp_params']['data_path'],
                                config['exp_params']['hr_datapath'],
                                  'celeba')
+SetRange = transforms.Lambda(lambda X: 2 * X - 1.)
+SetScale = transforms.Lambda(lambda X: X / X.sum(0).expand_as(X))
 
 transFORM = transforms.Compose([
     transforms.Resize([16, 16], interpolation=3),
-    transforms.ToTensor()
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    # SetRange
 ])
 
 div2k = datasets.ImageFolder(os.path.join(config['exp_params']['data_path'],

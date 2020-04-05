@@ -22,6 +22,7 @@ def get_data_loader(image_type,  **kwargs):
         transformLR = transforms.Compose([
             transforms.Resize([ kwargs['exp_params']['lr_imageSize'], kwargs['exp_params']['lr_imageSize'] ]),
             transforms.ToTensor()
+            # ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
         path = os.path.join(kwargs['exp_params']['data_path'], kwargs['exp_params']['lr_datapath'])
@@ -39,6 +40,8 @@ def get_data_loader(image_type,  **kwargs):
             # transforms.CenterCrop((500)),
             transforms.Resize([ kwargs['exp_params']['hr_imageSize'], kwargs['exp_params']['hr_imageSize'] ]),
             transforms.ToTensor()
+            # ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+
         ])
         path = os.path.join(kwargs['exp_params']['data_path'], kwargs['exp_params']['hr_datapath'])
         # test_path = os.path.join(image_path, 'test_{}'.format(image_type))
@@ -50,7 +53,7 @@ def get_data_loader(image_type,  **kwargs):
         # data_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
     train_set, test_set = torch.utils.data.random_split(dataset, [len(dataset)-split, split])
     train_loader = DataLoader(dataset=train_set, batch_size=kwargs['exp_params']['batch_size'],
-                              shuffle=kwargs['exp_params']['shuffle'], num_workers=kwargs['exp_params']['num_workers'], drop_last=True)
+                              shuffle=kwargs['exp_params']['shuffle'], num_workers=kwargs['exp_params']['num_workers'], drop_last=False)
     test_loader = DataLoader(dataset=test_set, batch_size=kwargs['exp_params']['batch_size'],
                              num_workers=kwargs['exp_params']['num_workers'], drop_last=True)
 

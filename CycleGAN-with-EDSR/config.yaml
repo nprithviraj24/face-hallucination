@@ -2,10 +2,10 @@
 
 logging_params:
   log : True
-  log_interval : 50
-  image_log : 250 # Save images every 100 logs in an epoch
+  log_interval : 10
+  image_log : 10 # Save images every 100 logs in an epoch
   #image log: must be multiple of log_interval
-  save_dir: "logs/SpecNorm/"
+  save_dir: "logs/SpecNorm2/"
   name: "forward-cycle-EDSR"
 
 
@@ -36,7 +36,9 @@ exp_params:
   normalisation: InstanceNorm2d
   batch_size: 64 # Better to have a square number
   test_split : 20  # means 80% training, and 20% testing
-  LR: 0.005
+  lr : 0.000002
+  beta1 : 0.5
+  beta2 : 0.99 # default value
   weight_decay: 0.0
   scheduler_gamma: 0.95
   num_workers : 0

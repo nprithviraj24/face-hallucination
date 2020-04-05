@@ -20,32 +20,18 @@ Only Forward Cycle variant with G1 being EDSR.
 Modify ```dataloader.py``` accordingly.
 ```
 Dataset 
-└───hr
-│   └───hr
+└───div2k
+│   └───images
 │       │   image1.png
 │       │   image2.png
-│       │   ...  
-└───lr
-│   └───lr
-│       │   lr_image1.png
-│       │   lr_image2.png
-│       │   ...
-└───test_hr
-│   └───test_hr
-│       │   image1.png
-│       │   image2.png
-│       │   ...
-└───test_lr
-│   └───test_lr
-│       │   lr_image1.png
-│       │   lr_image2.png
-│       │   ...
-## Note: Following dataset is from different domain.
-└───DIV2K
-│   └───train
-│       │   lr_image1.png
-│       │   lr_image2.png
-│       │   ...
+│       │   ... 
+ 
+└───celebA
+│   └───align
+|        └───images
+│           │   image1.png
+│           │   image2.png
+│           │       ...
 ```
 
 
@@ -67,7 +53,9 @@ SpecNorm is much better way to enforce 1-Lipschitz constraint on D.[Spectral Nor
 
 ##### TODOs:
 - [ ] Find best variant for G-Two. 
-- [ ] FIDs and Inception scores.
+- [ ] Hyperparameter search for learning rates. 
+- [x] FIDs.
+- [ ] Try with different variants of data preprocessing.
 - [x] Spectral Normalisation.
 
 ### Losses

@@ -119,9 +119,9 @@ kernels = [3, 3]
 #lr=0.0000002, beta1 = 0.05, beta2 = 0.00999
 
 # hyperparams for Adam optimizer
-lr=0.00002
-beta1=0.5
-beta2=0.99 # default value
+lr= config['exp_params']['lr']
+beta1= config['exp_params']['beta1']
+beta2=config['exp_params']['beta2'] # default value
 
 g_params = list(G_XtoY.parameters()) + list(G_YtoX.parameters())  # Get generator parameters
 
@@ -129,7 +129,7 @@ g_params = list(G_XtoY.parameters()) + list(G_YtoX.parameters())  # Get generato
 g1_optimizer = optim.Adam(G_XtoY.parameters(), lr, [beta1, beta2])
 g_optimizer = optim.Adam(g_params, lr, [beta1, beta2])
 g2_optimizer = optim.Adam(G_YtoX.parameters(), lr, [beta1, beta2])
-d_x_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_X.parameters()), lr=lr, betas=(0.0,0.9))
+d_x_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_X.parameters()), cd =lr, betas=(0.0,0.9))
 # d_x_optimizer = optim.Adam(D_X.parameters(), lr, [beta1, beta2])
 d_y_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_Y.parameters()), lr=lr, betas=(0.0,0.9))
 # d_y_optimizer = optim.Adam(D_Y.parameters(), lr, [beta1, beta2])
