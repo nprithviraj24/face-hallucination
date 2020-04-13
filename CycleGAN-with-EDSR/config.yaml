@@ -1,13 +1,10 @@
-
-
 logging_params:
   log : True
-  log_interval : 10
-  image_log : 10 # Save images every 100 logs in an epoch
+  log_interval : 25
+  image_log : 50 # Save images every 100 logs in an epoch
   #image log: must be multiple of log_interval
-  save_dir: "logs/SpecNorm2/"
+  save_dir: "logs/SpecNorm3/"
   name: "forward-cycle-EDSR"
-
 
 hyperparams:
   gpus: 1
@@ -24,18 +21,19 @@ model_params:
 #  in_channels: 3
 #  latent_dim: 128
 
-exp_params:
+exp_params:  ##EXPERIMENT PARAMS
 #  dataset: celeba
   data_path: "/tmp/Datasets/"
   #If you want to try with different models
   lr_datapath : "DIV2k/images"
-  hr_datapath :  "celeba/img_align_celeba"
-
+#  hr_datapath :  "celeba/img_align_celeba"
+  hr_datapath: "3Dto2D/squared/uniques"
+  FID : '/128'
   hr_imageSize: 64
   lr_imageSize: 16
   normalisation: InstanceNorm2d
-  batch_size: 64 # Better to have a square number
-  test_split : 20  # means 80% training, and 20% testing
+  batch_size: 8 # Better to have a square number and not less than 8!!!
+  test_split : 10  # means 80% training, and 20% testing
   lr : 0.000002
   beta1 : 0.5
   beta2 : 0.99 # default value
@@ -53,8 +51,8 @@ EDSR:
  res_scale : 0.1
  kernel_size : 3
  scale : 4
- edsr_save: "/tmp/Datasets/DIV2k/model/EDSR" #used in edsrOnly
- save_dir: "/tmp/Datasets/DIV2k/model/CycleEDSR"
+ edsr_save: "/tmp/Datasets/DIV2k/model2/EDSR" #used in edsrOnly
+ save_dir: "/tmp/Datasets/DIV2k/model2/CycleEDSR"
 
 Gtwo:
   c : 64  #initially 256

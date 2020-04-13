@@ -69,9 +69,7 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
     # constant throughout training, that allow us to inspect the model's performance.
     fixed_X = test_iter_X.next()[0]
     fixed_Y = test_iter_Y.next()[0]
-    # make sure to scale to a range -1 to 1
-    # fixed_X = scale(fixed_X) 
-    # fixed_Y = scale(fixed_Y)
+
 
     # batches per epoch
 

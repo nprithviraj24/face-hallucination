@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.utils.data as data
 from PIL import Image, ImageFile
 from torch.utils.tensorboard import SummaryWriter
+import torchvision.utils as vutils
 from torchvision import transforms
 from tqdm import tqdm
 
@@ -21,8 +22,8 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def train_transform():
     transform_list = [
-        transforms.Resize(size=(512, 512)),
-        transforms.RandomCrop(256),
+        transforms.Resize(size=(64, 64)),
+        # transforms.RandomCrop(256),
         transforms.ToTensor()
     ]
     return transforms.Compose(transform_list)
@@ -57,23 +58,23 @@ def adjust_learning_rate(optimizer, iteration_count):
 
 parser = argparse.ArgumentParser()
 # Basic options
-parser.add_argument('--content_dir', type=str, default='/tmp/Datasets/3Dto2D/squared/uniques/117',
+parser.add_argument('--content_dir', type=str, default='/tmp/Datasets/3Dto2D/squared/uniques/128',
                     help='Directory path to a batch of content images')
 parser.add_argument('--style_dir', type=str, default='/tmp/Datasets/DIV2k/sty/33',
                     help='Directory path to a batch of style images')
-parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
+parser.add_argument('--vgg', type=str, default='/tmp/models/vgg_normalised.pth')
 
 # training options
-parser.add_argument('--save_dir', default='./experiments/ait',
+parser.add_argument('--save_dir', default='./experiments/ait3',
                     help='Directory to save the model')
-parser.add_argument('--log_dir', default='./logs/ait',
+parser.add_argument('--log_dir', default='./logs/ait3',
                     help='Directory to save the log')
 parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--lr_decay', type=float, default=5e-5)
 parser.add_argument('--max_iter', type=int, default=160000)
-parser.add_argument('--batch_size', type=int, default=4)
+parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--style_weight', type=float, default=10.0)
-parser.add_argument('--content_weight', type=float, default=1.0)
+parser.add_argument('--content_weight', type=float, default=0.75)
 parser.add_argument('--n_threads', type=int, default=0)
 parser.add_argument('--save_model_interval', type=int, default=10000)
 args = parser.parse_args()
@@ -115,7 +116,7 @@ for i in tqdm(range(args.max_iter)):
     adjust_learning_rate(optimizer, iteration_count=i)
     content_images = next(content_iter).to(device)
     style_images = next(style_iter).to(device)
-    loss_c, loss_s = network(content_images, style_images)
+    out, loss_c, loss_s = network(content_images, style_images)
     loss_c = args.content_weight * loss_c
     loss_s = args.style_weight * loss_s
     loss = loss_c + loss_s
@@ -126,6 +127,12 @@ for i in tqdm(range(args.max_iter)):
 
     writer.add_scalar('loss_content', loss_c.item(), i + 1)
     writer.add_scalar('loss_style', loss_s.item(), i + 1)
+
+    if (i+1) % 500== 0:
+        writer.add_image(str(i),
+                         vutils.make_grid(out[0:7, :, :, :], nrow=8, padding=1, normalize=True),
+                                       global_step=i)
+
 
     if (i + 1) % args.save_model_interval == 0 or (i + 1) == args.max_iter:
         state_dict = net.decoder.state_dict()

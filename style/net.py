@@ -2,6 +2,7 @@ import torch.nn as nn
 
 from function import adaptive_instance_normalization as adain
 from function import calc_mean_std
+debug = False
 
 decoder = nn.Sequential(
     nn.ReflectionPad2d((1, 1, 1, 1)),
@@ -135,18 +136,27 @@ class Net(nn.Module):
         return self.mse_loss(input_mean, target_mean) + \
                self.mse_loss(input_std, target_std)
 
-    def forward(self, content, style, alpha=1.0):
+    def forward(self, content, style, alpha=0.9):
         assert 0 <= alpha <= 1
         style_feats = self.encode_with_intermediate(style)
         content_feat = self.encode(content)
+        if debug: print("content_feat shape: ", content_feat.shape)
         t = adain(content_feat, style_feats[-1])
+        if debug: print("t: ", t.shape)
         t = alpha * t + (1 - alpha) * content_feat
 
         g_t = self.decoder(t)
         g_t_feats = self.encode_with_intermediate(g_t)
+        if debug: print("g_t: ", g_t.shape, "   g_t_feat: ", g_t_feats[0].shape)
 
         loss_c = self.calc_content_loss(g_t_feats[-1], t)
         loss_s = self.calc_style_loss(g_t_feats[0], style_feats[0])
         for i in range(1, 4):
             loss_s += self.calc_style_loss(g_t_feats[i], style_feats[i])
-        return loss_c, loss_s
+        return g_t, loss_c, loss_s
+
+# if debug:
+#     vgg = nn.Sequential(*list(vgg.children())[:31])
+#     network = Net(vgg, decoder)
+#     import torch
+#     network(torch.zeros(8,3,64,64), torch.ones(8,3,64,64))

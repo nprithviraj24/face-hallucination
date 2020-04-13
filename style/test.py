@@ -78,7 +78,7 @@ parser.add_argument('--output', type=str, default='output',
 
 # Advanced options
 parser.add_argument('--preserve_color', action='store_true',
-                    default='False',
+                    default='True',
                     help='If specified, preserve color of the content image')
 parser.add_argument('--alpha', type=float,
                     default=1,

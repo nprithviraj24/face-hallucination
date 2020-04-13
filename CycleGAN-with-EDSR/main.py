@@ -84,8 +84,7 @@ dataloader_X, test_iter_X = dl.get_data_loader(image_type='lr', exp_params=confi
 dataloader_Y, test_iter_Y = dl.get_data_loader(image_type='hr', exp_params=config['exp_params'])
 
 ### FOR FID
-reference_frame = '/tmp/Datasets/celeba/img_align_celeba/celeba'
-
+reference_frame = '/tmp/Datasets/3Dto2D/squared/variance/590'
 transFORM = transforms.Compose([
     transforms.Resize([16, 16], interpolation=3),
     transforms.ToTensor()
@@ -106,7 +105,7 @@ def calc_fid(model):
     model.train()
 
     return FID.calculate_fid_given_paths( [reference_frame, config['EDSR']['save_dir']],  # paths
-          100,  # batch size
+          8,  # batch size
           True,  # cuda
           2048 ) # dims
 
@@ -129,7 +128,7 @@ g_params = list(G_XtoY.parameters()) + list(G_YtoX.parameters())  # Get generato
 g1_optimizer = optim.Adam(G_XtoY.parameters(), lr, [beta1, beta2])
 g_optimizer = optim.Adam(g_params, lr, [beta1, beta2])
 g2_optimizer = optim.Adam(G_YtoX.parameters(), lr, [beta1, beta2])
-d_x_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_X.parameters()), cd =lr, betas=(0.0,0.9))
+d_x_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_X.parameters()), lr =lr, betas=(0.0,0.9))
 # d_x_optimizer = optim.Adam(D_X.parameters(), lr, [beta1, beta2])
 d_y_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_Y.parameters()), lr=lr, betas=(0.0,0.9))
 # d_y_optimizer = optim.Adam(D_Y.parameters(), lr, [beta1, beta2])
@@ -251,14 +250,19 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
 
            runningG_loss += g_total_loss
 
-
+           bs=config["exp_params"]["batch_size"]
            if config["logging_params"]["log"] and mbps % config["logging_params"]["log_interval"] == 0:
 
-              if mbps%config["logging_params"]["image_log"] ==0:
+              if mbps%config["logging_params"]["image_log"] ==True:
                  with torch.no_grad():
                    G_XtoY.eval()
-                   writer.add_image(tag=str(epoch)+'/'+str(mbps), img_tensor=vutils.make_grid( G_XtoY(fixed_X.to(device)), normalize=True,
-                                                      pad_value=1, nrow=8), global_step=epoch)
+                   y=G_XtoY(fixed_X.to(device))
+                   bs, c, h,w = y.size()
+                   x = F.interpolate(fixed_X[0, :,:,:], size=h)
+                   concat = torch.cat((x, y[0,:,:,:]), dim=0)
+                   print("Saved image!")
+                   writer.add_image(tag=str(epoch)+'/'+str(mbps), img_tensor=vutils.make_grid(concat.to('cpu'), normalize=True,
+                                                      pad_value=1, nrow=bs), global_step=epoch)
                    G_XtoY.train()
 
               writer.add_scalars('D', {'Y': d_y_loss.item(), 'X': d_x_loss.item()}, epoch)
@@ -269,14 +273,16 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
 
            print('Mini-batch no: {}, at epoch [{:3d}/{:3d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f}| g_total_loss: {:6.4f}'
                     .format(mbps, epoch, n_epochs,  d_x_loss.item() , d_y_loss.item() , g_total_loss.item() ))
-           print(' TV-loss: ', tvloss.item(), '  content loss:', contentloss.item(), '  identity loss:', identity_loss.item() )
+           print(' TV-loss: ', tvloss.item(), '  content loss:', contentloss.item(),
+                                        '  identity loss:', identity_loss.item() )
 
       fid = calc_fid(G_XtoY.eval())
       G_XtoY.train()
       writer.add_scalar('FID', fid, global_step=epoch)
 
       losses.append((runningDX_loss/mbps, runningDY_loss/mbps, runningG_loss/mbps))
-      print('Epoch [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | g_total_loss: {:6.4f}'.format(epoch, n_epochs, runningDX_loss/mbps ,  runningDY_loss/mbps,  runningG_loss/mbps ))
+      print('Epoch [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | g_total_loss: {:6.4f}'.format(epoch, n_epochs,
+                                                        runningDX_loss/mbps ,  runningDY_loss/mbps,  runningG_loss/mbps ))
 
 
     return losses
