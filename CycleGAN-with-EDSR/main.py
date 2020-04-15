@@ -83,7 +83,9 @@ G_XtoY, G_YtoX, D_X, D_Y = create_model(EDSR=config['EDSR'], Gtwo=config['Gtwo']
 dataloader_X, test_iter_X = dl.get_data_loader(image_type='lr', exp_params=config['exp_params'])
 dataloader_Y, test_iter_Y = dl.get_data_loader(image_type='hr', exp_params=config['exp_params'])
 
-### FOR FID
+#########
+''' FOR FID '''
+
 reference_frame = '/tmp/Datasets/3Dto2D/squared/variance/590'
 transFORM = transforms.Compose([
     transforms.Resize([16, 16], interpolation=3),
@@ -108,7 +110,7 @@ def calc_fid(model):
           8,  # batch size
           True,  # cuda
           2048 ) # dims
-
+###########
 
 c = 64  # initially 256
 batchnorm = True

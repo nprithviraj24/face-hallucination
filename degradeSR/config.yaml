@@ -1,0 +1,43 @@
+logging:
+  save_dir : "logs/"
+  name: "wo_Cwo_D"
+
+  manual_seed: 656
+  model_save_interval: 10000
+  model_save_dir: 'experiments/'
+  im_save_interval: 500
+
+sty:
+  alpha: 0.75
+  lr: 0.0001
+
+SR:
+  lr: 0.000004
+  loss_weight: 0.5
+
+model:
+  vgg : '/tmp/models/vgg_normalised.pth'
+  save_dir: 'network/'
+
+exp:
+  max_iter : 100000
+#  dataset: celeba
+  data_path: "/tmp/Datasets/"
+  #If you want to try with different models
+  lr_datapath : "DIV2k/images"
+#  hr_datapath :  "celeba/img_align_celeba"
+  hr_datapath: "3Dto2D/squared/uniques"
+  FID : '/128'
+  hr_imageSize: 256
+  lr_imageSize: 64
+  batch_size: 8 # Better to have a square number and not less than 8!!!
+  test_split : 10  # means 80% training, and 20% testing
+  lr : 0.0001
+  lr_decay : 0.00005
+  num_workers : 0
+  shuffle : True # Shuffle the dataset
+
+loss:
+  kld_alpha: 0.75
+  rec_alpha: 1
+

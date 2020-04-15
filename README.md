@@ -27,7 +27,7 @@
 - [ ] <strong>Attribute-Guided Face Generation Using Condition CycleGAN</strong>
  
 
-- [ ] <strong>StyleVAE: Style basedVAE for Real-World SR</strong> [StyleVAE + SR Network](https://arxiv.org/abs/1912.10227)
+- [x] <strong>StyleVAE: Style basedVAE for Real-World SR</strong> [StyleVAE + SR Network](https://arxiv.org/abs/1912.10227)
 
 ** Yet to Come **
 ### Comparison
