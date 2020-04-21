@@ -1,6 +1,3 @@
-
-
-
 import math
 import os
 import torch
@@ -8,77 +5,58 @@ from torch.utils.data import DataLoader
 import torchvision
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-import os, yaml, argparse
+from torch.utils import data
+import numpy as np
 
+def InfiniteSampler(n):
+    # i = 0
+    i = n - 1
+    order = np.random.permutation(n)
+    while True:
+        yield order[i]
+        i += 1
+        if i >= n:
+            np.random.seed()
+            order = np.random.permutation(n)
+            i = 0
 
+class InfiniteSamplerWrapper(data.sampler.Sampler):
+    def __init__(self, data_source):
+        self.num_samples = len(data_source)
 
-batch_size = 8
-augment_Gaussian_blur = True
+    def __iter__(self):
+        return iter(InfiniteSampler(self.num_samples))
 
+    def __len__(self):
+        return 2 ** 31
 
-
-def gaussian_kernel(size, sigma=2, dim=2, channels=3):
-    # The gaussian kernel is the product of the gaussian function of each dimension.
-    # kernel_size should be an odd number.
-    
-      kernel_size = 2*size + 1
-      kernel_size = [kernel_size] * dim
-      sigma = [sigma] * dim
-      kernel = 1
-      meshgrids = torch.meshgrid([torch.arange(size, dtype=torch.float32) for size in kernel_size])
-      
-      for size, std, mgrid in zip(kernel_size, sigma, meshgrids):
-          mean = (size - 1) / 2
-          kernel *= 1 / (std * math.sqrt(2 * math.pi)) * torch.exp(-((mgrid - mean) / (2 * std)) ** 2)
-  
-      # Make sure sum of values in gaussian kernel equals 1.
-      kernel = kernel / torch.sum(kernel)
-      # Reshape to depthwise convolutional weight
-      kernel = kernel.view(1, 1, *kernel.size())
-      kernel = kernel.repeat(channels, *[1] * (kernel.dim() - 1))
-      return kernel
-
-def _gaussian_blur(x, size, Blur_sigma):
-      kernel = gaussian_kernel(size=size, sigma=Blur_sigma)
-      kernel_size = 2*size + 1
-      x = x[None,...]
-      padding = int((kernel_size - 1) / 2)
-      x = F.pad(x, (padding, padding, padding, padding), mode='reflect')
-      x = torch.squeeze(F.conv2d(x, kernel, groups=3))
-      return x
-
-
-
-class NoiseAndBlur():
-    """Adds gaussian noise to a tensor.
-
-        >>> transforms.Compose([
-        >>>     transforms.ToTensor(),
-        >>>     Noise(0.1, 0.05)),
-        >>> ])
-
-    """
-    def __init__(self, mean, stddev, image_size, applyBlur, Blur_sigma, Blur_ker_size):
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=1.):
+        self.std = std
         self.mean = mean
-        self.stddev = stddev
-        self.image_size = image_size
-        self.Blur_sigma = Blur_sigma
-        self.Blur_ker_size = Blur_ker_size
-        self.applyBlur = applyBlur
 
     def __call__(self, tensor):
-        noise = torch.zeros_like(tensor).normal_(self.mean, self.stddev)
-        if self.applyBlur == True:
-          return _gaussian_blur(tensor.add_(noise), self.Blur_ker_size, self.Blur_sigma)
-        else:
-          return tensor.add_(noise)
+        return tensor + torch.randn(tensor.size()) * self.std + self.mean
 
+    def __repr__(self):
+        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
-def get_data_loader(image_type,  **kwargs):
+def HRtrain_transform():
+    transform_list = [
+        # GaussianSmoothing([0,2]),
+        # transforms.Resize(size=(256, 256)),
+        # transforms.CenterCrop(150),
+        transforms.Resize(size=(64, 64)),
+        transforms.ToTensor(),
+        # AddGaussianNoise(0, 0.01)
+    ]
+    return transforms.Compose(transform_list)
+
+def get_data_loader(image_type,  exp=dict()):
     """Returns training and test data loaders for a given image type, either 'summer' or 'winter'.
        These images will be resized to 128x128x3, by default, converted into Tensors, and normalized.
     """
-    assert image_type =='lr' or image_type == 'hr', "Image type should lr or hr."
+    # assert image_type =='lr' or image_type == 'hr' or image_type=='celeba', "Image type should lr/hr/celeba."
 
     SetRange = transforms.Lambda(lambda X: 2 * X - 1.)
     SetScale = transforms.Lambda(lambda X: X / X.sum(0).expand_as(X))
@@ -87,16 +65,33 @@ def get_data_loader(image_type,  **kwargs):
     # resize and normalize the images
     if image_type == 'lr':
         transformLR = transforms.Compose([
-            transforms.Resize([ kwargs['exp_params']['lr_imageSize'], kwargs['exp_params']['lr_imageSize'] ]),
+            transforms.Resize([ exp.lr_imageSize, exp.lr_imageSize ]),
             transforms.ToTensor()
-            # ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
-        path = os.path.join(kwargs['exp_params']['data_path'], kwargs['exp_params']['lr_datapath'])
+        path = exp.image_dirLR
         # test_path = os.path.join(image_path, 'test_{}'.format(image_type))
         # define datasets using ImageFolder
         dataset = datasets.ImageFolder(path, transformLR)
-        split = int(kwargs['exp_params']['test_split'] * len(dataset) / 100)
+        split = int(10 * len(dataset) / 100)
+
+    # if image_type == 'celeba':
+    #         transformHR = transforms.Compose([
+    #             # transforms.RandomHorizontalFlip(),
+    #             # transforms.Pad((225, 150), 0, "constant"),
+    #             transforms.Resize(256),
+    #             transforms.CenterCrop(128),
+    #             transforms.Resize([exp.hr_imageSize, exp.hr_imageSize]),
+    #             transforms.ToTensor()
+    #             # ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    #
+    #         ])
+    #         path = exp.image_dirLR
+    #         # test_path = os.path.join(image_path, 'test_{}'.format(image_type))
+    #         # define datasets using ImageFolder
+    #         dataset = datasets.ImageFolder(path, transformHR)
+    #         split = int(0 * len(dataset) / 100)
 
         # create and return DataLoaders
 
@@ -105,80 +100,30 @@ def get_data_loader(image_type,  **kwargs):
             # transforms.RandomHorizontalFlip(),
             # transforms.Pad((225, 150), 0, "constant"),
             # transforms.CenterCrop((500)),
-            transforms.Resize([ kwargs['exp_params']['hr_imageSize'], kwargs['exp_params']['hr_imageSize'] ]),
+            transforms.Resize([ exp.hr_imageSize, exp.hr_imageSize ]),
             transforms.ToTensor()
-            # ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
         ])
-        path = os.path.join(kwargs['exp_params']['data_path'], kwargs['exp_params']['hr_datapath'])
+        path = exp.image_dirHR
         # test_path = os.path.join(image_path, 'test_{}'.format(image_type))
         # define datasets using ImageFolder
-        dataset = datasets.ImageFolder(path, transformHR)
-        split = int(kwargs['exp_params']['test_split']*len(dataset)/100)
+        dataset = datasets.ImageFolder(path, HRtrain_transform())
+        split = int(10*len(dataset)/100)
 
         # create and return DataLoaders
         # data_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
     train_set, test_set = torch.utils.data.random_split(dataset, [len(dataset)-split, split])
-    print(str([len(dataset)-split, split]))
-    print(image_type+" - Test split: "+str(len(test_set)))
-    train_loader = DataLoader(dataset=train_set, batch_size=kwargs['exp_params']['batch_size'],
-                              shuffle=kwargs['exp_params']['shuffle'], num_workers=kwargs['exp_params']['num_workers'], drop_last=True)
-    test_loader = DataLoader(dataset=test_set, batch_size=kwargs['exp_params']['batch_size'],
-                             num_workers=kwargs['exp_params']['num_workers'], drop_last=True)
+    # print("train_set", len(train_set))
+    train_loader = DataLoader(dataset=train_set, batch_size=exp.batch_size,
+                              sampler=InfiniteSamplerWrapper(train_set))
+                              # shuffle=exp.shuffle,
+                              # num_workers=exp.num_workers)
+                              # , drop_last=True)
+    test_loader = DataLoader(dataset=test_set
+                             , batch_size=exp.batch_size
+                             ,sampler = InfiniteSamplerWrapper(test_set))
+                             # num_workers=exp.num_workers)
 
 
-    return train_loader, test_loader
-
-
-
-#
-# def get_data_loader(image_type, image_dir, batch_size):
-#     """Returns training and test data loaders for a given image type
-#     """
-#     num_workers=0
-#     # resize and normalize the images
-#     transform1 = transforms.Compose([transforms.Resize((64, 64)) # resize to 128x128
-#                                     ,transforms.ToTensor()
-#                                     # ,NoiseAndBlur(0.1, 0.05, image_size = image_size, applyBlur=augment_Gaussian_blur, Blur_sigma=0, Blur_ker_size = 4)
-#                                     ,transforms.RandomErasing(p=0.2, scale=(0.00002, 0.001), ratio=(0.0001, 0.0006), value=0, inplace=False)
-#                                     # , tensor_normalizer()
-#                                     ])
-#     # get training and test directories
-#     # resize and normalize the images
-#     transform2 = transforms.Compose([transforms.Resize((64,64)), # resize to 128x128
-#                                     transforms.ToTensor()
-#                                     # , tensor_normalizer()
-#                                     ])
-#
-#     transform0 = transforms.Compose([transforms.Resize((16,16))
-#                                     ,transforms.ToTensor()
-#                                     # ,_gaussian_blur()
-#                                     # ,NoiseAndBlur(0.1, 0.05, image_size = image_size, applyBlur=augment_Gaussian_blur, Blur_sigma=1, Blur_ker_size = 4)
-#                                     ,transforms.RandomErasing(p=0.5, scale=(0.00002, 0.001), ratio=(0.0001, 0.0006), value=0, inplace=False)
-#                                      # , tensor_normalizer()
-#                                     ])
-#
-#     if image_type == 'lr':
-#         image_path = image_dir+'/DIV2K/'
-#         dataset = datasets.ImageFolder(image_path, transform0)
-#         n = len(dataset)
-#         train_set, val_set = torch.utils.data.random_split(dataset, [1600, n-1600])
-#
-#         # create and return DataLoaders
-#         train_loader = DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
-#         test_loader = DataLoader(dataset=val_set, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-#
-#     if image_type == 'hr':
-#         image_path = image_dir + '/lrtohr/'
-#         train_path = os.path.join(image_path, image_type)
-#         test_path = os.path.join(image_path, 'test_{}'.format(image_type))
-#         # define datasets using ImageFolder
-#         train_dataset = datasets.ImageFolder(train_path, transform2)
-#         test_dataset = datasets.ImageFolder(test_path, transform2)
-#
-#             # create and return DataLoaders
-#         train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
-#         test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-#
-#
-#     return train_loader, test_loader
+    return train_loader, test_loader, len(train_set)

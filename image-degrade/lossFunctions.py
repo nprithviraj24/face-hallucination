@@ -15,6 +15,7 @@ def fakeHingeLoss(x):
 
 def GANloss(X, fX): #real, fake
     assert X.shape[0] == fX.shape[0] # same batch size
+    r1=0; r2=0; i=0
     for i in range(X.shape[0]):
         r1 += min(0, X[i]-1 )
         r2 += min(0, -fX[i]-1 )
@@ -23,7 +24,7 @@ def GANloss(X, fX): #real, fake
     return r1+r2
 
 def pixelLoss(X, fX):  #real, fake
-    return nn.MSELoss(X, fX)
+    return nn.MSELoss()(X, fX)
 
 # disc_loss = nn.ReLU()(1.0 - discriminator(data)).mean() + nn.ReLU()(1.0 + discriminator(generator(z))).mean()
 

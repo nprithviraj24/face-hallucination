@@ -33,10 +33,11 @@ class Generator(nn.Module):
 
     def forward(self, x):
         
-        noise_tensor = torch.FloatTensor(x.size()).normal_(gNoise[0], gNoise[1] ).to(self.device)
-        #64*64 plus noise
-        block0 = torch.add(x, noise_tensor )
-        block1 = self.block1(block0)
+        # noise_tensor = torch.FloatTensor(x.size()).normal_(gNoise[0], gNoise[1] ).to(self.device)
+        # #64*64 plus noise
+        # x = torch.add(x, noise_tensor )
+
+        block1 = self.block1(x)
         block1 = self.pool(block1)
         #32*32
         block2 = self.block2(block1)      

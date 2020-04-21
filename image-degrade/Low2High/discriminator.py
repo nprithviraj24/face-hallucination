@@ -83,9 +83,9 @@ class Discriminator(nn.Module):
 
         self.block4 = DResBlock(channels)
         self.block5 = DResBlock(channels)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.fc1 = SpectralNorm(nn.Linear(16, 10))
-        self.fc2 = SpectralNorm(nn.Linear(10, 1))
+        self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
+        self.fc1 = SpectralNorm(nn.Linear(1024, 256))
+        self.fc2 = SpectralNorm(nn.Linear(256, 1))
 
 
     def forward(self, x):
@@ -101,9 +101,15 @@ class Discriminator(nn.Module):
         b4 = self.block4(b3)
         b4 = self.pool(b4)
 
-        out = self.block5(b4)
-        out = self.pool(out)
-        out = self.conv2(out)
+        b5 = self.block4(b4)
+        out = self.pool(b5)
+
+        # b6 = self.block4(b5)
+        # out = self.pool(b6)
+
+        # out = self.block5(b)
+        # out = self.pool(out)
+        # out = self.conv2(out)
         # print(out.shape)
         out = out.view(out.size(0), -1)
         # print(out.shape)

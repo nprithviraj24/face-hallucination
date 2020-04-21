@@ -1,7 +1,7 @@
 import math
 from torch import nn
 import numpy as np
-
+import torch
 
 def convert_size(size_bytes):
    if size_bytes == 0:
@@ -33,3 +33,8 @@ def downsample4x(x):
     #using avgpooling
     avg = nn.AvgPool2d(kernel_size=2, stride=2)
     return avg(avg(x))
+
+def upsample(factor, data):
+    return nn.Upsample(scale_factor=factor, mode='bicubic', align_corners=True)(data)
+
+
