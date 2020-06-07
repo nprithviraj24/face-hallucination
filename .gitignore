@@ -15,7 +15,7 @@ degradeSR/experiments2
 degradeSR/logs
 
 #denoising network
-ffdnet/
+ffdnet
 
 # ganilla
 ganilla/
