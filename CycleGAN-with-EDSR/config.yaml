@@ -3,16 +3,17 @@ logging_params:
   log_interval : 25
   image_log : 50 # Save images every 100 logs in an epoch
   #image log: must be multiple of log_interval
-  save_dir: "logs/SpecNorm3/"
+  save_dir: "logs/test/"
   name: "forward-cycle-EDSR"
 
 hyperparams:
   gpus: 1
   epochs : 500
-  TotalVariation_Weight: 0.01
-  Identity_Weight : 100000
-  Content_Weight : 10
-  lambda_weight : 50 #cycle consistency loss
+  TotalVariation_Weight: 0.0001
+  Identity_Weight : 1
+  Content_Weight : 0.2
+
+  lambda_weight : 0.3 #cycle consistency loss
 
 model_params:
   name: 'Forward-cycle-EDSR'
@@ -25,16 +26,16 @@ exp_params:  ##EXPERIMENT PARAMS
 #  dataset: celeba
   data_path: "/tmp/Datasets/"
   #If you want to try with different models
-  lr_datapath : "DIV2k/images"
+  lr_datapath : "DIV2k/no_variance"
 #  hr_datapath :  "celeba/img_align_celeba"
-  hr_datapath: "3Dto2D/squared/uniques"
+  hr_datapath: "3Dto2D/variance"
   FID : '/128'
-  hr_imageSize: 64
-  lr_imageSize: 16
-  normalisation: InstanceNorm2d
+  hr_imageSize: 128
+  lr_imageSize: 32
+  normalisation: BatchNorm2d
   batch_size: 8 # Better to have a square number and not less than 8!!!
   test_split : 10  # means 80% training, and 20% testing
-  lr : 0.000002
+  lr : 0.00001
   beta1 : 0.5
   beta2 : 0.99 # default value
   weight_decay: 0.0

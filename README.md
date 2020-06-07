@@ -1,12 +1,16 @@
 
 
 ### Face Hallucination
-##### This repo is built on grounds of developing different generative models to perform super-resolution (SR) on face images with unaligned pairs between domain X and domain Y. 
+##### This repo is built on grounds of exploring and developing various deep generative models to perform super-resolution (SR) on limited set of unaligned/unpaired face images. 
 
-
-1. Image-Degrade: [To learn image super-resolution, use a GAN to learn how to do image degradation first](https://arxiv.org/pdf/1807.11458.pdf)
-2. CycleGAN with EDSR. [CycleGAN](https://junyanz.github.io/CycleGAN/) and [EDSR](https://arxiv.org/pdf/1707.02921.pdf)
-
+Following models are part of my Masters' thesis ([pdf](https://www.cs.ait.ac.th/xmlui/handle/123456789/968))
+1. [CycleGAN-with-EDSR](https://github.com/nprithviraj24/face-hallucination/tree/master/CycleGAN-with-EDSR)
+2. [Image-Degrade](https://github.com/nprithviraj24/face-hallucination/tree/master/image-degrade)
+    - [To learn image super-resolution, use a GAN to learn how to do image degradation first](https://arxiv.org/pdf/1807.11458.pdf)
+3. AdaIN for degradation
+    - Based on Adaptive Instance normalisation from style transfer literature
+4. degradeSR
+    - Degrade an image using AdaIN and then perform super-resolution.
 
 
 ### Models to be examined in near future:

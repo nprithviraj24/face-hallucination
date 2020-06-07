@@ -3,8 +3,9 @@ from models import rcan
 from models import stylenet
 from models import simpleSR
 from models.function import adaptive_instance_normalization
-import dataloader as dl
+import dl2 as dl
 from models import Discriminator
+import torchvision.transforms.functional as TrF
 # from Discriminators import Spectral_Normalization
 # from Discriminators import Discriminator as D
 # import loss
@@ -23,7 +24,7 @@ from torch import nn
 import torch.optim as optim
 
 
-parser = argparse.ArgumentParser(description='Generic runner for VAE models')
+parser = argparse.ArgumentParser(description='Degrade SR')
 parser.add_argument('--config',  '-c',
                     dest="filename",
                     metavar='FILE',
@@ -43,7 +44,7 @@ torch.manual_seed(config["logging"]["manual_seed"])
 device = torch.device('cpu')
 if torch.cuda.is_available(): device = torch.device("cuda")
 
-def bi_scale(factor, inp): return nn.Upsample(scale_factor=factor, mode='bilinear')(inp)
+def bi_scale(factor, inp): return nn.Upsample(scale_factor=factor, mode='bilinear', align_corners=True)(inp)
 
 def adjust_learning_rate(optimizer, iteration_count):
     """Imitating the original implementation"""
@@ -77,16 +78,26 @@ class Args():
     self.n_feats = 64
     self.reduction=16
     self.vgg = '/tmp/models/vgg_normalised.pth'
-    self.decoder = '/tmp/models/decoder30k.pth'
+    # self.decoder = '/tmp/models/decoder30k.pth'
+    # self.decoder = '/tmp/face-hallucination/style/experiments/celeba/style_10k.pth'
+    # self.decoder = '/tmp/face-hallucination/style/experiments/ait-celeb/variance_decoder_iter_30000.pth'
+    self.decoder = '/tmp/face-hallucination/style/experiments/div2k-celeb_20-4/randomAlpha_decoder_iter_150000.pth'
     # self.reset
     # self.save_results
     # self.print_model
     self.patch_size = 64
     self.pre_train = "/tmp/pretrainedRCAN/RCAN_BIX4.pt"
+    # self.pre_train = "/tmp/face-hallucination/degradeSR/experiments/network_iter_10000.pth"
+    # self.pre_train = "/tmp/face-hallucination/degradeSR/experiments/ait-celeba/celeba_network_iter_99996.pth"
+
 args = Args()
 
-style, style_test = dl.get_data_loader(image_type='lr', exp=config['exp'])
-content, content_test = dl.get_data_loader(image_type='hr', exp=config['exp'])
+style, _ = dl.get_data_loader(image_type='lr', exp=config['exp'])
+# if 'celeba' in config['exp']['hr_datapath']:
+#     print("Celeb-A")
+#     content, content_test = dl.get_data_loader(image_type='celeba', exp=config['exp'])
+# else:
+content, _ = dl.get_data_loader(image_type='hr', exp=config['exp'])
 
 ## STYLE NETWORK Encoder
 vgg = stylenet.vgg
@@ -111,6 +122,16 @@ SRNet = rcan.make_model(args)
 SRNet.load_state_dict(torch.load(args.pre_train))
 # SRNet = simpleSR.Net(4)
 SRNet.to(device)
+x=0
+for child in SRNet.children():
+  x = x+1
+  if x<5:
+    # print("---")
+    for param in child.parameters():
+      param.requires_grad = False
+
+# print("\n\n x:", x)
+# print(list(SRNet.children())[-1] )
 
 #-----------------------#
 ''' Optimizing '''
@@ -139,20 +160,19 @@ styletransfer = stylenet.Net(vgg, decoder)
 style_iter = iter(style)
 content_iter = iter(content)
 
-s_test = iter(style_test); c_test = iter(content_test);
-
-alpha = config['sty']['alpha']
+# s_test = iter(style_test); c_test = iter(content_test);
 dOne = Discriminator.define_D(3, 8, netD='pixel')
 dOne.to(device)
 
-# config['exp']['max_iter'] = 1
+# alpha = config['sty']['alpha']
+import random #for alpha
 for i in tqdm(range(config['exp']['max_iter'] )):
-    print("\n")
-    adjust_learning_rate(g_optimizer, iteration_count=i)
-    # adjust_learning_rate(decoder2Optim, iteration_count=i)
 
+    adjust_learning_rate(g_optimizer, iteration_count=i)
     content_images = next(content_iter)[0].to(device)
     style_images = next(style_iter)[0].to(device)
+
+    alpha = round(random.uniform(0,1), 3)
     with torch.no_grad():
         sty_ft = vgg(style_images)
         cont_ft = vgg(content_images)
@@ -164,28 +184,27 @@ for i in tqdm(range(config['exp']['max_iter'] )):
 
     g_optimizer.zero_grad()
     content_images.detach(); style_images.detach()
-    hr = SRNet( bi_scale(0.25, cont_degrade) )
-    hr_IDT_loss = config['SR']['loss_weight'] * L1_Idt(content_images, hr)
+    hr = SRNet( bi_scale(0.0625, cont_degrade) )
+    # print(hr.shape)
+    hr_IDT_loss = config['SR']['loss_weight'] * L1_Idt( bi_scale(0.25,content_images), hr)
     hr_IDT_loss.backward()
     g_optimizer.step()
 
     tt_logger.experiment.add_scalar('IDT_Loss', hr_IDT_loss, global_step=i)
+    tt_logger.experiment.add_scalar('Alpha', alpha, global_step=i)
 
-    ##Logging
-    if (i+1) % config['logging']['im_save_interval'] == 0:
-        # print("\n .")
-        out=torch.cat([content_images, bi_scale(4, style_images),cont_degrade, hr], dim=0)
-        # tt_logger.experiment.add_image(config['logging']['name'],
-        vutils.save_image(out, config['logging']['model_save_dir']+'/samples2/'+str(i)+'.png')
+    if (i+1) % config['logging']['im_save_interval'] == 0 or i==1:
+        logger_image = torch.cat(
+            [bi_scale(0.25, content_images)[0:1], style_images[0:1], bi_scale(0.25, cont_degrade)[0:1], hr[0:1]])
+
+        tt_logger.experiment.add_images(config['logging']['name']+'/'+str(i)+'/alpha_'+str(alpha),
+                                       logger_image, global_step=i )
+        # vutils.save_image(out, config['logging']['model_save_dir']+'/samples2/'+str(i)+'.png')
 
     if (i+1) % config['logging']['model_save_interval'] == 0 or (i + 5) == config['exp']['max_iter']:
-            # print("\n ..")
             state_dict = SRNet.state_dict()
             for key in state_dict.keys():
                 state_dict[key] = state_dict[key].to(torch.device('cpu'))
             torch.save(state_dict, config["logging"]["model_save_dir"]+
-                       str('network_iter_')+str(int(i+1))+str('.pth'))
-    # vutils.save_image(out, 'xyz.png')
-    # print("\n\n  OUT: ", out.shape)
-
+                       str('iter_')+str(int(i+1))+str('.pth'))
 

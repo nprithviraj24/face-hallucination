@@ -3,5 +3,6 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/CycleGAN-with-EDSR/FID" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ganilla" vcs="" />
   </component>
 </project>

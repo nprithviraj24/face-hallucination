@@ -1,14 +1,13 @@
 logging:
-  save_dir : "logs/"
-  name: "wo_Cwo_D"
-
+  save_dir : "experiments2/"
+  name: "bulat"
   manual_seed: 656
-  model_save_interval: 10000
-  model_save_dir: 'experiments/'
+  model_save_interval: 5000
+  model_save_dir: 'experiments2/bulat/'
   im_save_interval: 500
 
 sty:
-  alpha: 0.75
+  alpha: 0.25
   lr: 0.0001
 
 SR:
@@ -20,19 +19,21 @@ model:
   save_dir: 'network/'
 
 exp:
-  max_iter : 100000
+  max_iter : 160000
 #  dataset: celeba
   data_path: "/tmp/Datasets/"
   #If you want to try with different models
-  lr_datapath : "DIV2k/images"
-#  hr_datapath :  "celeba/img_align_celeba"
+#  lr_datapath : "celebA-264/noisy"
+  lr_datapath: 'DIV2k/images'
+#  hr_datapath :  "3Dto2D/variance"
   hr_datapath: "3Dto2D/squared/uniques"
+#  hr_datapath: 'celeba/img_align_celeba'
   FID : '/128'
-  hr_imageSize: 256
-  lr_imageSize: 64
+  hr_imageSize: 128
+  lr_imageSize: 32
   batch_size: 8 # Better to have a square number and not less than 8!!!
-  test_split : 10  # means 80% training, and 20% testing
-  lr : 0.0001
+  test_split : 0  # if 20, means 80% training, and 20% testing
+  lr : 0.0005
   lr_decay : 0.00005
   num_workers : 0
   shuffle : True # Shuffle the dataset

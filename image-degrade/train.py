@@ -24,14 +24,14 @@ parser.add_argument('--save_dir', type=str, default='experiments/')
 parser.add_argument('--name', type=str, default='no_noiseV')
 
 parser.add_argument('--pixelWeight', type=float, default=0.75)
-parser.add_argument('--ganWeight', type=float, default=0.90)
+parser.add_argument('--ganWeight', type=float, default=0.45)
 parser.add_argument('--cycleWeight', type=float, default=0.50)
 
 parser.add_argument('--n_epochs', type=int, default=500)
 parser.add_argument('--image_dirLR', type=str, default="/tmp/Datasets/DIV2k/images")
 parser.add_argument('--image_dirHR', type=str, default="/tmp/Datasets/3Dto2D/squared/variance")
-parser.add_argument('--lr_imageSize', type=str, default=16)
-parser.add_argument('--hr_imageSize', type=str, default=64)
+parser.add_argument('--lr_imageSize', type=str, default=32)
+parser.add_argument('--hr_imageSize', type=str, default=128)
 
 # parser.add_argument('--loss', type=str, default='hinge')
 # parser.add_argument('--checkpoint_dir', type=str, default='checkpoints')
@@ -69,12 +69,12 @@ highresD = D_L2H.Discriminator(); highresD.cuda()
 
 upsampleG = G_L2H.GEN_DEEP(); upsampleG.cuda()
 upsampleG.load_state_dict(torch.load('model.pkl'))
-# x=0
-# for child in upsampleG.children():
-#     x = x+1
-#     if x < 5:
-#         for param in child.parameters():
-#             param.requires_grad = False
+x=0
+for child in upsampleG.children():
+    x = x+1
+    if x < 5:
+        for param in child.parameters():
+            param.requires_grad = False
 
 # print(x)
 # '''
@@ -181,7 +181,7 @@ def training_loop(high_res_loader, low_res_loader, test_high_res_loader, test_lo
             fakeHR_d = highresD(fake_highres)
             gan2Loss = LossF.GANloss(highresD(high_res), fakeHR_d)
             pixel2Loss = LossF.pixelLoss(high_res, fake_highres)
-            lossL2H = args.ganWeight * gan2Loss + args.pixelWeight * pixel2Loss
+            lossL2H = args.ganWeight * gan2Loss + 2 * pixel2Loss
             upsample_epoch += lossL2H
             lossL2H.backward(retain_graph=True)
 
@@ -198,7 +198,7 @@ def training_loop(high_res_loader, low_res_loader, test_high_res_loader, test_lo
                 tt_logger.experiment.add_scalar('G/G1/Pixel', args.pixelWeight * pixel1Loss, global_step=global_step)
 
                 tt_logger.experiment.add_scalar('G/G2/Gan', args.ganWeight * gan2Loss, global_step=global_step)
-                tt_logger.experiment.add_scalar('G/G2/Pixel', args.pixelWeight * pixel2Loss, global_step=global_step)
+                tt_logger.experiment.add_scalar('G/G2/Pixel', 2 * pixel2Loss, global_step=global_step)
 
                 tt_logger.experiment.add_scalar('G/Cycle', cycle, global_step=global_step)
 
@@ -225,6 +225,13 @@ def training_loop(high_res_loader, low_res_loader, test_high_res_loader, test_lo
             tt_logger.experiment.add_scalar('Epoch/D1', d1_epoch, global_step=epoch)
             tt_logger.experiment.add_scalar('Epoch/G2', upsample_epoch, global_step=epoch)
             tt_logger.experiment.add_scalar('Epoch/Cycle', cycle_epoch, global_step=epoch)
+
+        if (epoch + 1) % 25 == 0 or (epoch + 1) == args.n_epochs:
+            state_dict = downsampleG.state_dict()
+            for key in state_dict.keys():
+                state_dict[key] = state_dict[key].to(torch.device('cpu'))
+            torch.save(state_dict,  'saved_models/'+
+                       str('apr27downsampleG_iter_') + str(int(epoch + 1)) + str('.pth.tar'))
 
         scheduler_d.step()
         scheduler_g.step()

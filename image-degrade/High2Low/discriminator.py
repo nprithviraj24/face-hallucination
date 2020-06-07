@@ -85,6 +85,7 @@ class Discriminator(nn.Module):
 
         self.block4 = DResBlock(64)
         self.block5 = DResBlock(64)
+        self.block6 = DResBlock(64)
         self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0)
         # self.fc0 = SpectralNorm(nn.Linear())
         self.fc1 = SpectralNorm(nn.Linear(1024, 256))
@@ -101,11 +102,11 @@ class Discriminator(nn.Module):
         b3 = self.pool(b3)
         # print("b3: ", b3.shape)
         b4 = self.block4(b3)
-        out = self.pool(b4)
+        b4 = self.pool(b4)
         # print("b4: ", b4.shape)
 
-        # b5 = self.block5(b4)
-        # b5 = self.pool(b5)
+        b5 = self.block5(b4)
+        out = self.pool(b5)
         # print("b5:  ", b5.shape)
         #
         # b6 = self.block5(b5)

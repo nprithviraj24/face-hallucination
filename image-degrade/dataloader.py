@@ -41,16 +41,16 @@ class AddGaussianNoise(object):
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
-def HRtrain_transform():
-    transform_list = [
-        # GaussianSmoothing([0,2]),
-        # transforms.Resize(size=(256, 256)),
-        # transforms.CenterCrop(150),
-        transforms.Resize(size=(64, 64)),
-        transforms.ToTensor(),
-        # AddGaussianNoise(0, 0.01)
-    ]
-    return transforms.Compose(transform_list)
+# def HRtrain_transform():
+#     transform_list = [
+#         # GaussianSmoothing([0,2]),
+#         # transforms.Resize(size=(256, 256)),
+#         # transforms.CenterCrop(150),
+#         transforms.Resize(size=(64, 64)),
+#         transforms.ToTensor(),
+#         # AddGaussianNoise(0, 0.01)
+#     ]
+#     return transforms.Compose(transform_list)
 
 def get_data_loader(image_type,  exp=dict()):
     """Returns training and test data loaders for a given image type, either 'summer' or 'winter'.
@@ -99,16 +99,17 @@ def get_data_loader(image_type,  exp=dict()):
         transformHR = transforms.Compose([
             # transforms.RandomHorizontalFlip(),
             # transforms.Pad((225, 150), 0, "constant"),
-            # transforms.CenterCrop((500)),
+            # transforms.Resize(228,228),
+            transforms.CenterCrop((240)),
             transforms.Resize([ exp.hr_imageSize, exp.hr_imageSize ]),
             transforms.ToTensor()
-            ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            # ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
         ])
         path = exp.image_dirHR
         # test_path = os.path.join(image_path, 'test_{}'.format(image_type))
         # define datasets using ImageFolder
-        dataset = datasets.ImageFolder(path, HRtrain_transform())
+        dataset = datasets.ImageFolder(path, transformHR)
         split = int(10*len(dataset)/100)
 
         # create and return DataLoaders

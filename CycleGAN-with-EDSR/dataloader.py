@@ -39,6 +39,8 @@ def get_data_loader(image_type,  **kwargs):
     # resize and normalize the images
     if image_type == 'lr':
         transformLR = transforms.Compose([
+            # transforms.Resize(256),
+            # transforms.CenterCrop(115),
             transforms.Resize([ kwargs['exp_params']['lr_imageSize'], kwargs['exp_params']['lr_imageSize'] ]),
             transforms.ToTensor()
             # ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -56,7 +58,8 @@ def get_data_loader(image_type,  **kwargs):
         transformHR = transforms.Compose([
             # transforms.RandomHorizontalFlip(),
             # transforms.Pad((225, 150), 0, "constant"),
-            # transforms.CenterCrop((500)),
+            transforms.Resize((550,550)),
+            transforms.CenterCrop((515)),
             transforms.Resize([ kwargs['exp_params']['hr_imageSize'], kwargs['exp_params']['hr_imageSize'] ]),
             transforms.ToTensor()
             # ,transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])

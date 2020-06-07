@@ -1,0 +1,39 @@
+# log files
+
+# pycharm
+.idea
+
+#AdaIN
+AdaIN/experiments
+AdaIN/logs
+AdaIN/output
+AdaIN/results
+
+#experiments and logs
+degradeSR/experiments
+degradeSR/experiments2
+degradeSR/logs
+
+#denoising network
+ffdnet/
+
+# ganilla
+ganilla/
+
+## Bulat's experiments
+images-degrade/experiments/
+image-degrade/saved_models/
+image-degrade/model.pkl
+
+
+/ganilla/
+/ffdnet/
+/degradeSR/experiments/
+/degradeSR/experiments2/
+/degradeSR/logs/
+/image-degrade/experiments/
+/image-degrade/saved_models/
+/vae/network/
+/vae/test1/
+/CycleGAN-with-EDSR/logs/
+/.idea/

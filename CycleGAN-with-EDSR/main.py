@@ -6,7 +6,7 @@ from Generators import EDSR as G1
 from Generators import Gtwo as G2
 import loss
 from FID import fid_score as FID
-
+from pytorch_lightning.logging import TestTubeLogger
 # from test_tube import Experiment
 import os, yaml, argparse
 from torch.utils.tensorboard import SummaryWriter
@@ -18,6 +18,7 @@ from tqdm import tqdm
 import torchvision.models.vgg as vgg
 import torch
 from torch import nn
+from torch.nn import functional as F
 import torch.optim as optim
 
 
@@ -45,7 +46,15 @@ torch.manual_seed(config["model_params"]["manual_seed"])
 if config["logging_params"]["log"]:
 
     print("------- Logging active -------- ")
-    writer = SummaryWriter(config['logging_params']['save_dir'])
+    # writer = SummaryWriter(config['logging_params']['save_dir'])
+    tt_logger = TestTubeLogger(
+        save_dir=config['logging_params']['save_dir'],
+        name=config['logging_params']['name'],
+        debug=False,
+        create_git_tag=False
+    )
+    writer = tt_logger.experiment
+
 else:
     print("+++++++ No logger activated. +++++++ ")
 
@@ -80,11 +89,19 @@ def create_model(device, g_conv_dim=64, d_conv_dim=64, n_res_blocks=6, **kwargs)
 
 # Create train and test dataloaders for images from the two domains X and Y
 G_XtoY, G_YtoX, D_X, D_Y = create_model(EDSR=config['EDSR'], Gtwo=config['Gtwo'], device=device)
+x=0
+for child in G_XtoY.children():
+  x = x+1
+  if x<3:
+    for param in child.parameters():
+      param.requires_grad = False
+# print(x)
+
 dataloader_X, test_iter_X = dl.get_data_loader(image_type='lr', exp_params=config['exp_params'])
 dataloader_Y, test_iter_Y = dl.get_data_loader(image_type='hr', exp_params=config['exp_params'])
 
 #########
-''' FOR FID '''
+##  FOR FID 
 
 reference_frame = '/tmp/Datasets/3Dto2D/squared/variance/590'
 transFORM = transforms.Compose([
@@ -163,7 +180,7 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
 
     fixed_Y = next(iter(dataloader_Y))[0] ## shape: [batchsize, channels, height, width]
     fixed_X = next(iter(dataloader_X))[0]  ## shape: [batchsize, channels, height, width]
-
+    global_step=0
     for epoch in range(pretrain_epoch, config['hyperparams']['epochs']+1):
       print("inside")
       epochG_loss = 0
@@ -175,6 +192,7 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
       for batch_id, (x, _) in tqdm(enumerate(dataloader_X), total=len(dataloader_X)):
         #  with torch.no_grad():
            mbps += 1
+           global_step = global_step+1
            y, _ = next(iter(dataloader_Y))
            images_X = x # make sure to scale to a range -1 to 1
            images_Y = y
@@ -236,7 +254,7 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
 
            IDENTITY_WEIGHT = config['hyperparams']['Identity_Weight']
 
-           downsample = nn.Upsample(scale_factor=0.25, mode='bicubic')
+           downsample = nn.Upsample(scale_factor=0.25, mode='bicubic', align_corners=True)
            identity_loss = IDENTITY_WEIGHT * mse_loss(downsample(fake_Y), images_X )
 
            TOTAL_VARIATION_WEIGHT = config['hyperparams']['TotalVariation_Weight']
@@ -251,38 +269,37 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
           #  print("end: ", convert_size(torch.cuda.memory_allocated(device=device)))
 
            runningG_loss += g_total_loss
+           writer.add_scalar('D/Y', d_y_loss.item(), global_step=global_step)
+           writer.add_scalar('D/X', d_y_loss.item(), global_step=global_step)
+           writer.add_scalar('G/TV', tvloss.item(), global_step=global_step)
+           writer.add_scalar('G/Identity', identity_loss.item(), global_step=global_step)
+           writer.add_scalar('G/Content', contentloss.item(), global_step=global_step)
 
            bs=config["exp_params"]["batch_size"]
            if config["logging_params"]["log"] and mbps % config["logging_params"]["log_interval"] == 0:
-
-              if mbps%config["logging_params"]["image_log"] ==True:
-                 with torch.no_grad():
+              with torch.no_grad():
                    G_XtoY.eval()
                    y=G_XtoY(fixed_X.to(device))
                    bs, c, h,w = y.size()
-                   x = F.interpolate(fixed_X[0, :,:,:], size=h)
-                   concat = torch.cat((x, y[0,:,:,:]), dim=0)
+                   # x = F.interpolate(fixed_X[0:8, :,:,:], size=h)
+                   concat = torch.cat([nn.Upsample(scale_factor=4, mode='bicubic', align_corners=True)(fixed_X.cuda()), y[0:8,:,:,:].cuda()], dim=0)
                    print("Saved image!")
-                   writer.add_image(tag=str(epoch)+'/'+str(mbps), img_tensor=vutils.make_grid(concat.to('cpu'), normalize=True,
-                                                      pad_value=1, nrow=bs), global_step=epoch)
+                   writer.add_image(tag=str(epoch)+'/'+str(epoch)+'/'+str(mbps), img_tensor=vutils.make_grid(concat.to('cpu'), normalize=False,
+                                                      pad_value=1, nrow=8), global_step=global_step)
                    G_XtoY.train()
-
-              writer.add_scalars('D', {'Y': d_y_loss.item(), 'X': d_x_loss.item()}, epoch)
-              writer.add_scalars('G', {'TV': tvloss.item(),
-                                       'Content': contentloss.item(),
-                                       'Identity': identity_loss.item()}, epoch)
-
-
-           print('Mini-batch no: {}, at epoch [{:3d}/{:3d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f}| g_total_loss: {:6.4f}'
-                    .format(mbps, epoch, n_epochs,  d_x_loss.item() , d_y_loss.item() , g_total_loss.item() ))
-           print(' TV-loss: ', tvloss.item(), '  content loss:', contentloss.item(),
-                                        '  identity loss:', identity_loss.item() )
+           # print('Mini-batch no: {}, at epoch [{:3d}/{:3d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f}| g_total_loss: {:6.4f}'
+           #          .format(mbps, epoch, n_epochs,  d_x_loss.item() , d_y_loss.item() , g_total_loss.item() ))
+           # print(' TV-loss: ', tvloss.item(), '  content loss:', contentloss.item(),
+           #                              '  identity loss:', identity_loss.item() )
 
       fid = calc_fid(G_XtoY.eval())
       G_XtoY.train()
-      writer.add_scalar('FID', fid, global_step=epoch)
+      writer.add_scalar('Epoch/FID', fid, global_step=epoch)
 
       losses.append((runningDX_loss/mbps, runningDY_loss/mbps, runningG_loss/mbps))
+      writer.add_scalar('Epoch/G', runningG_loss/mbps, global_step=epoch )
+      writer.add_scalar('Epoch/D_X', runningDX_loss/mbps, global_step=epoch )
+      writer.add_scalar('Epoch/D_Y', runningDY_loss/mbps, global_step=epoch )
       print('Epoch [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | g_total_loss: {:6.4f}'.format(epoch, n_epochs,
                                                         runningDX_loss/mbps ,  runningDY_loss/mbps,  runningG_loss/mbps ))
 
@@ -291,6 +308,9 @@ def training_loop(dataloader_X, dataloader_Y, test_dataloader_X, test_dataloader
 
 
 n_epochs = 200 # keep this small when testing if a model first works
+fixed_Y = next(iter(dataloader_Y))[0]
+writer.add_image(tag='HR_images',
+                 img_tensor=vutils.make_grid(fixed_Y, normalize=False,
+                                             pad_value=1, nrow=8), global_step=0)
 
 losses = training_loop(dataloader_X, dataloader_Y, test_iter_X, test_iter_Y, n_epochs=n_epochs)
-
