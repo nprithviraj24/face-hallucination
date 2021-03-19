@@ -1,2 +1,2 @@
-Pillow==6.1
+Pillow==8.1.1
 pytorch-lightning
